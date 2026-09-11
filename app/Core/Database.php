@@ -24,7 +24,17 @@ final class Database
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ]);
-            self::$pdo->exec("SET time_zone = '-05:00'");
+            // Modo estricto siempre, tambien en desarrollo. Sin esto MariaDB acepta
+            // en silencio un NULL en una columna NOT NULL y lo convierte al valor
+            // por defecto: el error aparece solo al desplegar, donde el servidor si
+            // es estricto. Mejor que reviente en la maquina de quien programa.
+            self::$pdo->exec(
+                "SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,"
+                . "ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'"
+            );
+            // UTC por defecto: la zona es una decision de despliegue, no del codigo.
+            $zona = (string) Env::get('DB_TIMEZONE', '+00:00');
+            self::$pdo->prepare('SET time_zone = ?')->execute([$zona]);
         }
         return self::$pdo;
     }

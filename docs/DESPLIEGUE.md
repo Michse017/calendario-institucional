@@ -27,6 +27,7 @@ base está vacía. Reiniciar el contenedor no borra nada.
 | `APP_DEMO` | `true` | Muestra las cuentas de ejemplo y habilita el reinicio |
 | `PORT` | el que asigne la plataforma | |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` | los de la base | |
+| `DB_TIMEZONE` | `+00:00` | Zona horaria de la sesión de base de datos |
 | `TRUST_PROXY` | `true` | Hay un balanceador delante, así que la dirección real viene en la cabecera |
 | `DEMO_RESET_TOKEN` | una cadena larga y aleatoria | Autoriza el reinicio nocturno |
 

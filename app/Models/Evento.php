@@ -76,7 +76,7 @@ final class Evento
             $vals = [];
             foreach (self::COLS_SIMPLES as $c) {
                 $set[] = "$c = ?";
-                $vals[] = $datos[$c];
+                $vals[] = $datos[$c] ?? '';
             }
             foreach (Campos::COLUMNA as $col) {
                 $set[] = "$col = ?";
