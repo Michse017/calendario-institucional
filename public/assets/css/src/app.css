@@ -1,5 +1,9 @@
-@import "tailwindcss";
-@source "../../../../app/Views";
+/* source(none) desactiva el escaneo automático del proyecto: sin él, Tailwind
+   recorre el árbol entero y el resultado depende del sistema de archivos, de
+   modo que Windows y el runner de Linux generaban CSS distinto. Con las rutas
+   declaradas a mano la compilación es reproducible en cualquier máquina. */
+@import "tailwindcss" source(none);
+@source "../../../../app";
 @source "../../js";
 
 @custom-variant dark (&:where(.dark, .dark *));
