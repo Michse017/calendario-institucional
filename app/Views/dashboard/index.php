@@ -128,4 +128,4 @@ $tarjetas = [
     <div class="card p-5"><p class="label">Por segmento</p><div x-ref="segmento" class="h-80"></div></div>
   </div>
 </div>
-<?php $scripts = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>'; ?>
+<?php $scripts = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" integrity="sha384-Mx5lkUEQPM1pOJCwFtUICyX45KNojXbkWdYhkKUKsbv391mavbfoAmONbzkgYPzR" crossorigin="anonymous"></script>'; ?>

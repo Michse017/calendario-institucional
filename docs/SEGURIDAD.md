@@ -92,8 +92,55 @@ cualquier salida:
 | `Permissions-Policy` | Renuncia a cámara, micrófono, ubicación y pagos |
 | `Strict-Transport-Security` | Exige HTTPS durante un año, solo fuera de desarrollo |
 
-La política permite `unsafe-eval` en los scripts porque Alpine.js evalúa las
-expresiones de sus atributos. Es una concesión consciente y acotada.
+### Scripts en línea: nonce, no `unsafe-inline`
+
+La página necesita un script en línea diminuto que aplica el tema oscuro antes
+del primer pintado, para que no se vea el destello blanco. Abrir la política
+con `unsafe-inline` habría sido lo cómodo, pero eso autoriza **cualquier**
+script en línea, incluido el que llegue a colarse por una inyección: sería
+renunciar justo a la protección que da la política.
+
+En su lugar, cada respuesta lleva un número de un solo uso de 16 bytes que va
+a la vez en la cabecera y en la etiqueta:
+
+```
+Content-Security-Policy: ... script-src 'self' https://cdn.jsdelivr.net 'nonce-w5iSK5zZ...' ...
+<script nonce="w5iSK5zZ...">
+```
+
+Solo se ejecuta el script que lleva la marca que el servidor acaba de sortear.
+Quien inyecte código no puede adivinarla.
+
+### Integridad de los recursos externos
+
+Alpine, FullCalendar y ECharts se cargan desde una red de distribución, con la
+versión fijada y con la huella del archivo declarada:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"
+        integrity="sha384-9Ax3MmS9AClxJyd5/zafcXXjxmwFhZCdsT6HJoJjarvCaAkJlk5QDzjLJm+Wdx5F"
+        crossorigin="anonymous"></script>
+```
+
+Si el archivo servido no coincide byte a byte con esa huella, el navegador se
+niega a ejecutarlo. Es la defensa contra que la red de distribución se vea
+comprometida y sirva otro código.
+
+La hoja de tipografías de Google queda fuera: su contenido cambia según el
+navegador que la pide, así que no admite una huella fija. Es una limitación
+conocida de ese servicio, no un descuido.
+
+### Lo que sigue abierto, y por qué
+
+`script-src` permite `unsafe-eval` porque Alpine.js evalúa las expresiones de
+sus atributos con `new Function`. Quitarlo exige la variante de Alpine
+preparada para políticas estrictas, que obliga a reescribir cada expresión
+como método de un componente. Es una concesión consciente y acotada a los
+scripts, y queda anotada aquí en lugar de disimulada.
+
+`style-src` permite `unsafe-inline` porque varias vistas calculan colores en
+línea y porque Alpine muestra y oculta elementos tocando el atributo `style`.
+El riesgo de un estilo inyectado es bastante menor que el de un script.
 
 ## Permisos
 

@@ -19,6 +19,22 @@ final class Seguridad
     private const FUENTES_CSS = 'https://fonts.googleapis.com';
     private const FUENTES_ARCHIVO = 'https://fonts.gstatic.com';
 
+    /** Se calcula una vez por petición y vale tanto para la cabecera como para la vista. */
+    private static ?string $nonce = null;
+
+    /**
+     * Número de un solo uso que autoriza a UN script en línea concreto.
+     *
+     * Es la alternativa correcta a abrir la política con 'unsafe-inline', que
+     * autorizaría cualquier script en línea, incluido el que llegue a colarse
+     * por una inyección. Con el nonce solo se ejecuta el que lleva la marca que
+     * el servidor acaba de sortear, y que el atacante no puede adivinar.
+     */
+    public static function nonce(): string
+    {
+        return self::$nonce ??= base64_encode(random_bytes(16));
+    }
+
     public static function cabeceras(): void
     {
         if (headers_sent()) {
@@ -44,7 +60,7 @@ final class Seguridad
             . "default-src 'self'; "
             // Alpine.js evalúa las expresiones de sus atributos, por eso necesita
             // 'unsafe-eval'. Es una concesión consciente y acotada a los scripts.
-            . "script-src 'self' " . self::CDN . " 'unsafe-eval'; "
+            . "script-src 'self' " . self::CDN . " 'nonce-" . self::nonce() . "' 'unsafe-eval'; "
             . "style-src 'self' 'unsafe-inline' " . self::FUENTES_CSS . "; "
             . "font-src 'self' data: " . self::FUENTES_ARCHIVO . "; "
             . "img-src 'self' data:; "

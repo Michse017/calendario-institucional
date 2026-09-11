@@ -14,6 +14,12 @@ function base_path(): string
     return rtrim((string) Env::get('APP_BASE_PATH', ''), '/');
 }
 
+/** Nonce de la política de contenido, para marcar un script en línea autorizado. */
+function nonce(): string
+{
+    return \App\Core\Seguridad::nonce();
+}
+
 /** url('eventos/nuevo', ['fecha' => '2026-09-16']) → /agenda/?r=eventos%2Fnuevo&fecha=2026-09-16 */
 function url(string $ruta = '', array $params = []): string
 {
