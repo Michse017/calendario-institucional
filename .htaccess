@@ -1,0 +1,21 @@
+RewriteEngine On
+RewriteBase /cal/
+Options -Indexes
+
+# Nada interno se sirve directo
+RewriteRule ^\.env - [F,L]
+RewriteRule ^(app|sql|tests|bin|docs|storage|node_modules)(/.*)?$ - [F,L]
+RewriteRule ^(bootstrap\.php|package\.json|package-lock\.json|README\.md|BITACORA\.md)$ - [F,L]
+RewriteRule (^|/)\. - [F,L]
+RewriteRule \.(bak|sql|log|md|xlsx|csv)$ - [F,L]
+
+# Assets: /cal/assets/... -> public/assets/...
+RewriteRule ^public/assets/ - [L]
+RewriteRule ^assets/(.*)$ public/assets/$1 [L]
+
+# Todo lo demas al front controller
+RewriteRule ^ public/index.php [QSA,L]
+
+<FilesMatch "^\.(env|htaccess)|\.(sql|log|bak|xlsx|csv)$">
+    Require all denied
+</FilesMatch>

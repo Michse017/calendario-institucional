@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Centro Cultural Meridiano" width="48" height="48">
+  <title>Centro Cultural Meridiano</title>
+  <!-- Globo con su meridiano: el nombre del centro, dibujado. -->
+  <circle cx="24" cy="24" r="19" fill="none" stroke="#1F3F7A" stroke-width="2.4"/>
+  <!-- Meridiano vertical: la elipse estrecha que cruza los polos. -->
+  <ellipse cx="24" cy="24" rx="8.2" ry="19" fill="none" stroke="#1F3F7A" stroke-width="1.6" opacity=".75"/>
+  <!-- Paralelo: la línea del ecuador. -->
+  <line x1="5" y1="24" x2="43" y2="24" stroke="#1F3F7A" stroke-width="1.6" opacity=".75"/>
+  <!-- Punto de referencia sobre el meridiano, en el ámbar de la paleta. -->
+  <circle cx="24" cy="14.2" r="3.1" fill="#E0A020"/>
+</svg>

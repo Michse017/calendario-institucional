@@ -1,0 +1,95 @@
+@import "tailwindcss";
+@source "../../../../app/Views";
+@source "../../js";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+
+  --color-crema: #F6F5F1;
+  --color-tinta: #1B1F27;
+  --color-borde: #E6E3DB;
+  --color-azul: #1F3F7A;
+  --color-azul-oscuro: #183366;
+  --color-azul-claro: #E8EEF9;
+  --color-gris: #6B7280;
+  --color-gris-claro: #9AA0AB;
+  --color-noche: #12151C;
+  --color-noche-2: #1B1F27;
+  --color-noche-borde: #2A2F3A;
+  --color-estado-gris: #B3B7BF;
+  --color-estado-ambar: #E0A020;
+  --color-estado-verde: #2E9E5B;
+  --color-peligro: #B42318;
+}
+
+@layer base {
+  html { font-family: var(--font-sans); }
+  body { @apply bg-crema text-tinta antialiased dark:bg-noche dark:text-[#E9EAEE]; }
+  ::selection { @apply bg-azul/20; }
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition
+         focus:outline-none focus-visible:ring-2 focus-visible:ring-azul/40 disabled:opacity-50 disabled:pointer-events-none;
+}
+@utility card {
+  @apply rounded-2xl border border-borde bg-white shadow-[0_1px_2px_rgba(27,31,39,.04)]
+         dark:bg-noche-2 dark:border-noche-borde;
+}
+@utility input {
+  @apply w-full rounded-xl border border-borde bg-white px-3.5 py-2.5 text-sm text-tinta placeholder:text-gris-claro
+         focus:border-azul focus:ring-2 focus:ring-azul/20 focus:outline-none
+         dark:bg-noche dark:border-noche-borde dark:text-[#E9EAEE];
+}
+@utility chip {
+  @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold leading-none;
+}
+
+@layer components {
+  .btn-primario   { @apply btn bg-azul text-white shadow-sm hover:bg-azul-oscuro; }
+  .btn-secundario { @apply btn border border-borde bg-white text-tinta hover:bg-[#F0EEE8]
+                           dark:bg-noche-2 dark:border-noche-borde dark:text-[#E9EAEE] dark:hover:bg-[#232834]; }
+  .btn-peligro    { @apply btn bg-peligro/10 text-peligro hover:bg-peligro/20; }
+  .btn-icono      { @apply btn h-9 w-9 p-0 text-gris hover:bg-[#EEECE6] hover:text-tinta dark:hover:bg-[#232834]; }
+  .label          { @apply mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-gris dark:text-gris-claro; }
+  .badge-estado   { @apply chip bg-[color:color-mix(in_srgb,var(--c)_14%,transparent)] text-[color:var(--c)]; }
+  .nav-link       { @apply rounded-full px-3.5 py-1.5 text-sm font-semibold text-[#5B6270] hover:bg-[#EEECE6] hover:text-tinta
+                           dark:text-gris-claro dark:hover:bg-[#232834] dark:hover:text-white; }
+  .nav-link-activo{ @apply bg-azul text-white hover:bg-azul hover:text-white dark:hover:bg-azul; }
+  .titulo         { @apply font-serif text-[2rem] leading-tight tracking-tight; }
+  /* Título del calendario (p.ej. "septiembre de 2026"): solo la primera letra va en mayúscula;
+     text-transform:capitalize de Tailwind también le ponía mayúscula a la preposición "de". */
+  .cro-cal-titulo { text-transform: none; }
+  .cro-cal-titulo::first-letter { text-transform: uppercase; }
+  .error-campo    { @apply mt-1 text-xs font-medium text-peligro; }
+  .tabla          { @apply w-full text-sm; }
+  .tabla th       { @apply px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.08em] text-gris; }
+  .tabla td       { @apply border-t border-borde px-3 py-2.5 align-top dark:border-noche-borde; }
+  .kbd            { @apply rounded-md border border-borde bg-white px-1.5 py-0.5 font-mono text-[10px] text-gris dark:bg-noche dark:border-noche-borde; }
+
+  /* Chips de evento en el calendario (usan --c = color del área) */
+  .cro-chip { @apply flex items-center gap-1.5 overflow-hidden rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-tight;
+              background: color-mix(in srgb, var(--c) 14%, white); color: color-mix(in srgb, var(--c) 80%, black); border-left: 3px solid var(--c); }
+  .dark .cro-chip { background: color-mix(in srgb, var(--c) 22%, #1B1F27); color: color-mix(in srgb, var(--c) 70%, white); }
+  .cro-punto { @apply h-1.5 w-1.5 shrink-0 rounded-full; }
+  .cro-chip-txt { @apply truncate; }
+  .cro-chip-cancelado { opacity: .8; }
+  .cro-chip-cancelado .cro-chip-txt { @apply line-through; }
+
+  /* FullCalendar: se re-estiliza sobre sus variables */
+  .fc { --fc-border-color: #E6E3DB; --fc-today-bg-color: #E8EEF9; --fc-page-bg-color: transparent; --fc-neutral-bg-color: transparent; --fc-more-link-bg-color: #F0EEE8; font-size: 13px; }
+  .dark .fc { --fc-border-color: #2A2F3A; --fc-today-bg-color: rgba(31,63,122,.35); --fc-more-link-bg-color: #232834; }
+  .fc .fc-daygrid-day-number { @apply p-1.5 text-xs font-semibold text-gris; }
+  .fc .fc-day-today .fc-daygrid-day-number { @apply inline-flex h-6 w-6 items-center justify-center rounded-full bg-azul text-white; }
+  .fc .fc-col-header-cell-cushion { @apply py-2 text-[11px] font-bold uppercase tracking-[0.08em] text-gris; }
+  .fc .fc-daygrid-event { border: 0; background: transparent; margin: 1px 3px; }
+  .fc .fc-daygrid-event:hover { filter: brightness(.97); }
+  .fc .fc-h-event .fc-event-main { color: inherit; }
+  .fc .fc-list { border-radius: 1rem; overflow: hidden; }
+  .fc .fc-list-day-cushion { @apply bg-[#F0EEE8] dark:bg-[#232834]; }
+  .fc .fc-scrollgrid { border-radius: 1rem; overflow: hidden; }
+  .fc .fc-daygrid-more-link { @apply text-[11px] font-semibold text-azul; }
+}
