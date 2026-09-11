@@ -1,0 +1,48 @@
+# Levanta la aplicación y su base con un solo comando:
+#
+#   docker compose up --build
+#
+# Luego abre http://localhost:8080 y entra con una de las cuentas de ejemplo
+# que aparecen en la propia pantalla de acceso.
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      APP_NAME: "Calendario Institucional"
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_BASE_PATH: ""
+      APP_DEMO: "true"
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: calendario_demo
+      DB_USER: calendario
+      DB_PASS: calendario
+      TRUST_PROXY: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: raiz
+      MARIADB_DATABASE: calendario_demo
+      MARIADB_USER: calendario
+      MARIADB_PASSWORD: calendario
+    volumes:
+      - datos:/var/lib/mysql
+    healthcheck:
+      # Apache no debe arrancar antes de que la base acepte conexiones.
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  datos:
