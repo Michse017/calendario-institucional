@@ -1,5 +1,14 @@
 # Calendario Institucional
 
+[![CI](https://github.com/Michse017/calendario-institucional/actions/workflows/ci.yml/badge.svg)](https://github.com/Michse017/calendario-institucional/actions/workflows/ci.yml)
+[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+[![PHP 8.3](https://img.shields.io/badge/PHP-8.3-777BB4.svg)](https://www.php.net/)
+
+**[Ver la demostración en marcha](https://p01--calendario-app--4vlvttwlglcs.code.run/)**  ·  [Arquitectura y diagramas](docs/ARQUITECTURA.md)  ·  [Seguridad](docs/SEGURIDAD.md)  ·  [Despliegue](docs/DESPLIEGUE.md)
+
+Entra con cualquiera de las tres cuentas de ejemplo que la propia pantalla de
+acceso muestra. Los datos vuelven solos a su estado inicial cada madrugada.
+
 Calendario compartido para organizaciones con varias áreas. Cada área es dueña
 de sus eventos y solo ella puede editarlos, todo cambio queda registrado, y la
 carga de trabajo se lee de un vistazo en dos mapas de calor.
@@ -107,6 +116,14 @@ directamente en lugar de invocar PHP por consola, porque `exec()` está
 desactivado en la mayoría de alojamientos compartidos y eso dejaría la demo sin
 poder reiniciarse justo donde suele vivir.
 
+## Arquitectura
+
+[`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) reúne ocho diagramas: la
+infraestructura, la tubería de integración continua, las capas del código, el
+recorrido de una petición, el flujo de acceso, el modelo de datos y el arranque
+del contenedor. Están escritos en Mermaid, así que se editan como texto y
+envejecen junto al código en vez de quedarse desfasados en una imagen suelta.
+
 ## Seguridad
 
 El detalle completo está en [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md). En resumen:
@@ -122,6 +139,8 @@ El detalle completo está en [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md). En resume
 | Fijación de sesión | El identificador se regenera en el momento de autenticar |
 | Robo de cookie | `HttpOnly`, `SameSite` y `Secure` fuera de desarrollo |
 | Secretos filtrados | Nada de credenciales en el repositorio; solo `.env.example` con valores de ejemplo |
+| Scripts inyectados | La política no permite `unsafe-inline`: el único script en línea va autorizado por un número de un solo uso distinto en cada respuesta |
+| Red de distribución comprometida | Los cinco recursos externos llevan versión fijada y huella `sha384`; si el archivo no coincide, el navegador no lo ejecuta |
 
 ## Desarrollo
 
