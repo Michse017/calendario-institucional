@@ -10,17 +10,17 @@ function test_evento_crear_y_leer_con_catalogos(): void
     conDb(function (PDO $pdo): void {
         $id = Evento::crear(datosEvento(), 7);
         $ev = Evento::porId($id);
-        assertEq('Xfit Argentina', $ev['nombre']);
-        assertEq('Promoción y Mercadeo', $ev['area']);
-        assertEq('#0E8F8B', $ev['area_color']);
-        assertEq('Xbuenos Aires', $ev['ciudad']);
+        assertEq('Xciclo de Jazz', $ev['nombre']);
+        assertEq('Programación', $ev['area']);
+        assertEq('#3A5BD9', $ev['area_color']);
+        assertEq('Xpuerto Sereno', $ev['ciudad']);
         assertEq(7, (int) $ev['creado_por']);
         assertEq(null, $ev['eliminado_en']);
-        $pais = Catalogo::buscarPorNorm('pais', 'xargentina');
+        $pais = Catalogo::buscarPorNorm('pais', 'xandalia');
         assertEq(1, (int) $pais['usos'], 'el país nuevo quedó con 1 uso');
         $h = Historial::listar(10, $id);
         assertEq('crear', $h[0]['accion']);
-        assertEq('Xfit Argentina', $h[0]['cambios']['despues']['nombre']);
+        assertEq('Xciclo de Jazz', $h[0]['cambios']['despues']['nombre']);
     });
 }
 
@@ -28,20 +28,20 @@ function test_evento_actualizar_ajusta_usos_y_registra_diferencias(): void
 {
     conDb(function (PDO $pdo): void {
         // Las áreas semilla pueden tener usos previos (eventos importados): se comparan valores relativos.
-        $usosPromo = (int) Catalogo::buscarPorNorm('area', 'promocion y mercadeo')['usos'];
-        $usosPlan = (int) Catalogo::buscarPorNorm('area', 'planeacion')['usos'];
+        $usosOrigen = (int) Catalogo::buscarPorNorm('area', 'programacion')['usos'];
+        $usosDestino = (int) Catalogo::buscarPorNorm('area', 'educacion')['usos'];
         $id = Evento::crear(datosEvento(), 7);
-        Evento::actualizar($id, datosEvento(['area' => 'Planeación', 'estado' => 'realizado', 'nombre' => 'Xfit 2']), 7);
+        Evento::actualizar($id, datosEvento(['area' => 'Educación', 'estado' => 'realizado', 'nombre' => 'Xfit 2']), 7);
         $ev = Evento::porId($id);
-        assertEq('Planeación', $ev['area']);
+        assertEq('Educación', $ev['area']);
         assertEq('realizado', $ev['estado']);
-        assertEq($usosPromo, (int) Catalogo::buscarPorNorm('area', 'promocion y mercadeo')['usos'], 'el área vieja devuelve su uso');
-        assertEq($usosPlan + 1, (int) Catalogo::buscarPorNorm('area', 'planeacion')['usos'], 'el área nueva suma un uso');
-        $pais = Catalogo::buscarPorNorm('pais', 'xargentina');
+        assertEq($usosOrigen, (int) Catalogo::buscarPorNorm('area', 'programacion')['usos'], 'el área vieja devuelve su uso');
+        assertEq($usosDestino + 1, (int) Catalogo::buscarPorNorm('area', 'educacion')['usos'], 'el área nueva suma un uso');
+        $pais = Catalogo::buscarPorNorm('pais', 'xandalia');
         assertEq(1, (int) $pais['usos'], 'lo que no cambió queda igual');
         $h = Historial::listar(10, $id);
         assertEq('editar', $h[0]['accion']);
-        assertEq(['antes' => 'Promoción y Mercadeo', 'despues' => 'Planeación'], $h[0]['cambios']['area']);
+        assertEq(['antes' => 'Programación', 'despues' => 'Educación'], $h[0]['cambios']['area']);
         assertTrue(!isset($h[0]['cambios']['pais']));
     });
 }
@@ -50,14 +50,14 @@ function test_evento_eliminar_es_logico_y_restaurar_vuelve(): void
 {
     conDb(function (PDO $pdo): void {
         $id = Evento::crear(datosEvento(), 7);
-        Evento::eliminar($id, 1);
+        Evento::eliminar($id, 1, 'Se retira de la programación de la temporada.');
         assertEq(null, Evento::porId($id));
         $ev = Evento::porId($id, true);
         assertTrue($ev['eliminado_en'] !== null);
-        assertEq(0, (int) Catalogo::buscarPorNorm('pais', 'xargentina')['usos']);
+        assertEq(0, (int) Catalogo::buscarPorNorm('pais', 'xandalia')['usos']);
         Evento::restaurar($id, 1);
         assertTrue(Evento::porId($id) !== null);
-        assertEq(1, (int) Catalogo::buscarPorNorm('pais', 'xargentina')['usos']);
+        assertEq(1, (int) Catalogo::buscarPorNorm('pais', 'xandalia')['usos']);
         assertEq(['restaurar', 'eliminar', 'crear'], array_column(Historial::listar(10, $id), 'accion'));
     });
 }
@@ -118,14 +118,14 @@ function test_evento_cancelar_y_reanudar(): void
 {
     conDb(function (PDO $pdo): void {
         $id = Evento::crear(datosEvento(['estado' => 'en_ejecucion']), 7);
-        $usosPais = (int) Catalogo::buscarPorNorm('pais', 'xargentina')['usos'];
+        $usosPais = (int) Catalogo::buscarPorNorm('pais', 'xandalia')['usos'];
 
         assertLanza(fn() => Evento::cancelar($id, 'ab', 7), 'motivo demasiado corto');
         Evento::cancelar($id, '  Se cayó el patrocinio  ', 7);
         $ev = Evento::porId($id);
         assertEq('cancelado', $ev['estado']);
         assertEq('Se cayó el patrocinio', $ev['cancelacion_motivo']);
-        assertEq($usosPais, (int) Catalogo::buscarPorNorm('pais', 'xargentina')['usos'], 'cancelar no toca usos');
+        assertEq($usosPais, (int) Catalogo::buscarPorNorm('pais', 'xandalia')['usos'], 'cancelar no toca usos');
         $h = Historial::listar(10, $id);
         assertEq('cancelar', $h[0]['accion']);
         assertEq(['estado_previo' => 'en_ejecucion', 'motivo' => 'Se cayó el patrocinio'], $h[0]['cambios']);
@@ -160,7 +160,7 @@ function test_evento_listar_orden(): void
 {
     conDb(function (PDO $pdo): void {
         $a = Evento::crear(datosEvento(['nombre' => 'Xo1', 'fecha_inicio' => '2033-01-10', 'fecha_fin' => '2033-01-10', 'area' => 'Muelle']), 7);
-        $b = Evento::crear(datosEvento(['nombre' => 'Xo2', 'fecha_inicio' => '2033-02-10', 'fecha_fin' => '2033-02-10', 'area' => 'Planeación']), 7);
+        $b = Evento::crear(datosEvento(['nombre' => 'Xo2', 'fecha_inicio' => '2033-02-10', 'fecha_fin' => '2033-02-10', 'area' => 'Educación']), 7);
         assertEq(['Xo1', 'Xo2'], array_column(Evento::listar(['anio' => 2033])['filas'], 'nombre'), 'por defecto del más cercano al más lejano (asc)');
         assertEq(['Xo2', 'Xo1'], array_column(Evento::listar(['anio' => 2033, 'orden' => 'desc'])['filas'], 'nombre'));
         assertEq(['Xo1', 'Xo2'], array_column(Evento::listar(['anio' => 2033, 'orden' => 'raro'])['filas'], 'nombre'), 'valor inválido cae al orden por defecto (asc)');

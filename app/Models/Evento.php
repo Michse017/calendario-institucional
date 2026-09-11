@@ -44,7 +44,9 @@ final class Evento
             $cols = array_merge(self::COLS_SIMPLES, array_values(Campos::COLUMNA), ['creado_por', 'actualizado_por']);
             $vals = [];
             foreach (self::COLS_SIMPLES as $c) {
-                $vals[] = $datos[$c];
+                // Las columnas de detalle de "Otros" solo llegan cuando aplican; el resto
+                // de quien llama (formulario o guion) puede omitirlas sin romper el INSERT.
+                $vals[] = $datos[$c] ?? '';
             }
             foreach (Campos::COLUMNA as $col) {
                 $vals[] = $ids[$col];

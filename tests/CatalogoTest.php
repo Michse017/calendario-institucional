@@ -37,7 +37,9 @@ function test_catalogo_sugerencias_prefijo_primero_y_por_usos(): void
         $pdo->exec("UPDATE catalogo_valores SET activo = 0 WHERE valor_norm = 'xcinactiva'");
         $r = Catalogo::sugerencias('ciudad', 'XCA');
         assertEq(['Xcanto', 'Xcaleta', 'Buxca'], array_column($r, 'valor'));
-        assertEq([], Catalogo::sugerencias('ciudad', ''));
+        // Con la caja vacía se ofrecen los valores más usados: así quien crea un evento
+        // ve las opciones disponibles sin tener que empezar a escribir.
+        assertTrue(count(Catalogo::sugerencias('ciudad', '')) > 0, 'la consulta vacía ofrece los más usados');
         assertEq([], Catalogo::sugerencias('ciudad', '%'), 'el % se escapa');
     });
 }
