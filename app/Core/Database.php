@@ -19,11 +19,27 @@ final class Database
                 Env::get('DB_PORT', '3306'),
                 Env::get('DB_NAME', 'calendario_demo')
             );
-            self::$pdo = new PDO($dsn, (string) Env::get('DB_USER', 'root'), (string) Env::get('DB_PASS', ''), [
+            $opciones = [
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,
-            ]);
+            ];
+
+            // Cifrado de la conexión. Las bases gestionadas suelen exigirlo y
+            // rechazan de plano una conexión sin cifrar.
+            if (Env::bool('DB_SSL')) {
+                $ca = (string) Env::get('DB_SSL_CA', '');
+                if ($ca !== '') {
+                    $opciones[PDO::MYSQL_ATTR_SSL_CA] = $ca;
+                }
+                // Muchos proveedores firman el certificado con su propia autoridad
+                // interna, que el contenedor no conoce. Verificar el nombre del
+                // servidor fallaría siempre, así que se desactiva salvo que haya
+                // una autoridad declarada. El tráfico sigue cifrado.
+                $opciones[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = Env::bool('DB_SSL_VERIFY', $ca !== '');
+            }
+
+            self::$pdo = new PDO($dsn, (string) Env::get('DB_USER', 'root'), (string) Env::get('DB_PASS', ''), $opciones);
             // Modo estricto siempre, tambien en desarrollo. Sin esto MariaDB acepta
             // en silencio un NULL en una columna NOT NULL y lo convierte al valor
             // por defecto: el error aparece solo al desplegar, donde el servidor si

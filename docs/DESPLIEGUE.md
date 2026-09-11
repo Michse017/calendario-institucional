@@ -28,6 +28,9 @@ base está vacía. Reiniciar el contenedor no borra nada.
 | `PORT` | el que asigne la plataforma | |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` | los de la base | |
 | `DB_TIMEZONE` | `+00:00` | Zona horaria de la sesión de base de datos |
+| `DB_SSL` | `true` | La base gestionada exige conexión cifrada |
+| `DB_SSL_VERIFY` | `false` | El certificado lo firma la autoridad interna del proveedor, que el contenedor no conoce. El tráfico sigue cifrado |
+| `DB_SSL_CA` | vacío | Ruta a la autoridad certificadora, si el proveedor la publica |
 | `TRUST_PROXY` | `true` | Hay un balanceador delante, así que la dirección real viene en la cabecera |
 | `DEMO_RESET_TOKEN` | una cadena larga y aleatoria | Autoriza el reinicio nocturno |
 
