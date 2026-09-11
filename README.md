@@ -92,11 +92,31 @@ keep the code readable from beginning to end.
 In the browser: **Alpine.js** for interface state, **FullCalendar** for the
 calendar grid and **ECharts** for the charts.
 
-> **A note on language.** The source code, the database schema and the user
-> interface are written in Spanish, the language of the team that built it. The
-> documentation is in English. Renaming identifiers purely for display would
-> have meant a rewrite with no functional gain, so the choice was made
-> deliberately rather than by omission.
+### Bilingual interface
+
+The application speaks **English and Spanish**, switchable from the `ES | EN`
+control in the header. The choice is remembered in the session and a cookie,
+and the switch keeps you on the page and filters you were looking at.
+
+The translation key is the Spanish source string itself. That is deliberate: if
+a string is ever missed, the screen shows it in Spanish rather than a raw key
+like `calendar.new_event` or an empty gap. It degrades gracefully, and the views
+still read as text instead of a map of identifiers. A test walks the code
+looking for `t()` calls and fails if any of them is missing from the
+dictionary, so a new screen cannot quietly ship half-translated.
+
+What gets translated is the interface and the seeded catalogue values
+(departments, event types, audiences, statuses, plan objectives). What people
+type — an event name, a cancellation reason — is left exactly as written:
+translating someone else's content would mean inventing it. In the event form
+the catalogue values are also left as they are, because there the value shown
+*is* the value stored.
+
+> **A note on the source.** The code and the database schema are written in
+> Spanish, the language of the team that built it; the documentation is in
+> English. Renaming identifiers purely for display would have meant a rewrite
+> with no functional gain, so the choice was made deliberately rather than by
+> omission.
 
 ### Decisions worth commenting on
 

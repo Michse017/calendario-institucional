@@ -68,7 +68,7 @@ final class AuthController extends Controller
         }
 
         if (IntentoAcceso::bloqueado($correo, $ip)) {
-            flash('error', 'Demasiados intentos fallidos. Espera ' . IntentoAcceso::VENTANA_MINUTOS . ' minutos y vuelve a probar.');
+            flash('error', t('Demasiados intentos fallidos. Espera :minutos minutos y vuelve a probar.', ['minutos' => IntentoAcceso::VENTANA_MINUTOS]));
             Response::redirigir(url('acceso'));
         }
 

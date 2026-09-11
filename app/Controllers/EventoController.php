@@ -100,7 +100,7 @@ final class EventoController extends Controller
         $estado = (string) $req->post('estado', '');
         try {
             Evento::cambiarEstado((int) $ev['id'], $estado, Auth::usuario()['id']);
-            flash('ok', 'Estado actualizado: ' . estado_etiqueta($estado) . '.');
+            flash('ok', t('Estado actualizado: :estado.', ['estado' => t(estado_etiqueta($estado))]));
         } catch (RuntimeException $e) {
             flash('error', $e->getMessage());
         }

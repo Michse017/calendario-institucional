@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?= h(App\Core\Idioma::actual()) ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= h($titulo ?? 'Calendario') ?> · Centro Cultural Meridiano</title>
+<title><?= h(t($titulo ?? 'Calendario')) ?> · Centro Cultural Meridiano</title>
 <meta name="csrf-token" content="<?= h(App\Core\Csrf::token()) ?>">
 <meta name="base-url" content="<?= h(base_path()) ?>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,8 +23,8 @@
        x-transition:leave="cro-aviso-anim" x-transition:leave-start="cro-aviso-dentro" x-transition:leave-end="cro-aviso-fuera">
     <div class="cro-aviso flex items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium <?= $f['tipo'] === 'ok' ? 'border-estado-verde/30 bg-estado-verde/10 text-[#1E6B3E]' : 'border-peligro/30 bg-peligro/10 text-peligro' ?>" role="status" aria-live="polite">
       <span class="cro-aviso-icono"><?= $f['tipo'] === 'ok' ? '✓' : '!' ?></span>
-      <span class="flex-1"><?= h($f['mensaje']) ?></span>
-      <button type="button" class="btn-icono h-7 w-7" @click="cerrar()" aria-label="Cerrar aviso">✕</button>
+      <span class="flex-1"><?= h(t($f['mensaje'])) ?></span>
+      <button type="button" class="btn-icono h-7 w-7" @click="cerrar()" aria-label="<?= h(t('Cerrar aviso')) ?>">✕</button>
       <span class="cro-aviso-barra" :style="'width:' + Math.max(restante, 0) + '%'"></span>
     </div>
   </div>

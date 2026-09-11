@@ -390,13 +390,13 @@ document.addEventListener('alpine:init', () => {
     },
   }));
 
-  Alpine.data('paleta', () => ({
+  Alpine.data('paleta', (txt = {}) => ({
     abierta: false, q: '', activo: 0, resultados: [], _t: null,
     acciones: [
-      { clave: 'nuevo', texto: 'Nuevo evento', sub: 'acción', url: CRO.url('eventos/nuevo') },
-      { clave: 'cal', texto: 'Ir al calendario', sub: 'acción', url: CRO.url('calendario') },
-      { clave: 'lista', texto: 'Ver lista de eventos', sub: 'acción', url: CRO.url('eventos') },
-      { clave: 'dash', texto: 'Abrir dashboard', sub: 'acción', url: CRO.url('dashboard') },
+      { clave: 'nuevo', texto: txt.nuevoEvento, sub: txt.accion, url: CRO.url('eventos/nuevo') },
+      { clave: 'cal', texto: txt.irCalendario, sub: txt.accion, url: CRO.url('calendario') },
+      { clave: 'lista', texto: txt.verLista, sub: txt.accion, url: CRO.url('eventos') },
+      { clave: 'dash', texto: txt.abrirDashboard, sub: txt.accion, url: CRO.url('dashboard') },
     ],
     get visibles() {
       const q = this.q.trim().toLowerCase();
@@ -439,20 +439,20 @@ document.addEventListener('alpine:init', () => {
       const oscuro = document.documentElement.classList.contains('dark');
       const texto = oscuro ? '#9AA0AB' : '#6B7280';
       const base = { textStyle: { fontFamily: 'Manrope' }, color: ['#B3B7BF', '#E0A020', '#2E9E5B', '#8A8F98'] };
-      const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      const meses = d.txt.meses;
       const serie = (estado, nombre) => ({ name: nombre, type: 'bar', stack: 'total', barMaxWidth: 28, itemStyle: { borderRadius: 3 },
         data: Object.values(d.por_mes).map((m) => m[estado]) });
       const charts = [];
       const crear = (ref, opt) => { const c = echarts.init(this.$refs[ref], null, { renderer: 'canvas' }); c.setOption({ ...base, ...opt }); charts.push(c); };
       crear('mes', { tooltip: { trigger: 'axis' }, legend: { bottom: 0, textStyle: { color: texto } }, grid: { left: 30, right: 10, top: 10, bottom: 40 },
         xAxis: { type: 'category', data: meses, axisLabel: { color: texto } }, yAxis: { type: 'value', minInterval: 1, axisLabel: { color: texto }, splitLine: { lineStyle: { color: oscuro ? '#2A2F3A' : '#E6E3DB' } } },
-        series: [serie('no_realizado', 'No realizado'), serie('en_ejecucion', 'En ejecución'), serie('realizado', 'Realizado'), serie('cancelado', 'Cancelado')] });
+        series: [serie('no_realizado', d.txt.estados[0]), serie('en_ejecucion', d.txt.estados[1]), serie('realizado', d.txt.estados[2]), serie('cancelado', d.txt.estados[3])] });
       crear('area', { tooltip: { trigger: 'item' }, series: [{ type: 'pie', radius: ['55%', '80%'], label: { color: texto, fontSize: 11 },
         data: d.por_area.map((a) => ({ name: a.area, value: a.total, itemStyle: { color: a.color || '#B3B7BF' } })) }] });
       crear('tipo', { tooltip: { trigger: 'axis' }, grid: { left: 10, right: 30, top: 10, bottom: 10, containLabel: true }, color: ['#1F3F7A', '#2E9E5B'],
         xAxis: { type: 'value', minInterval: 1, axisLabel: { color: texto } }, yAxis: { type: 'category', data: d.por_tipo.map((t) => t.tipo).reverse(), axisLabel: { color: texto, width: 180, overflow: 'truncate' } },
-        series: [{ name: 'Total', type: 'bar', barMaxWidth: 18, itemStyle: { borderRadius: 3 }, data: d.por_tipo.map((t) => t.total).reverse() },
-                 { name: 'Realizadas', type: 'bar', barMaxWidth: 18, itemStyle: { borderRadius: 3 }, data: d.por_tipo.map((t) => t.realizados).reverse() }] });
+        series: [{ name: d.txt.total, type: 'bar', barMaxWidth: 18, itemStyle: { borderRadius: 3 }, data: d.por_tipo.map((t) => t.total).reverse() },
+                 { name: d.txt.realizadas, type: 'bar', barMaxWidth: 18, itemStyle: { borderRadius: 3 }, data: d.por_tipo.map((t) => t.realizados).reverse() }] });
       crear('segmento', { tooltip: { trigger: 'item' }, color: ['#1F3F7A', '#3A5BD9', '#0E8F8B', '#C2780A', '#7A4BD6', '#C43D6B', '#3E8E3A', '#B3B7BF'],
         series: [{ type: 'pie', radius: ['45%', '75%'], label: { color: texto, fontSize: 11 }, data: d.por_segmento.map((s) => ({ name: s.segmento, value: s.total })) }] });
       window.addEventListener('resize', () => charts.forEach((c) => c.resize()));
