@@ -42,6 +42,18 @@ jobs:
       - name: Aplicar el esquema
         run: mysql -h 127.0.0.1 -u root -praiz < sql/001_schema.sql
 
+      # Se siembra ANTES de probar: hay pruebas que comprueban que los catalogos
+      # de la semilla estan completos, y ademas asi se verifica que el sembrador
+      # funciona de verdad contra una base limpia.
+      - name: Sembrar los datos de ejemplo
+        run: php bin/sembrar_demo.php --con-usuarios
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+          DB_NAME: calendario_demo
+          DB_USER: root
+          DB_PASS: raiz
+
       - name: Ejecutar la batería de pruebas
         # --sin-omitidos hace que omitir cuente como fallo: sin base de datos las
         # pruebas que la necesitan se saltan solas y todo se veria verde sin
@@ -50,15 +62,6 @@ jobs:
         env:
           APP_ENV: testing
           APP_DEBUG: 'true'
-          DB_HOST: 127.0.0.1
-          DB_PORT: '3306'
-          DB_NAME: calendario_demo
-          DB_USER: root
-          DB_PASS: raiz
-
-      - name: Sembrar los datos de ejemplo
-        run: php bin/sembrar_demo.php --con-usuarios
-        env:
           DB_HOST: 127.0.0.1
           DB_PORT: '3306'
           DB_NAME: calendario_demo
