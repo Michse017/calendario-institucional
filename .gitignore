@@ -1,0 +1,20 @@
+# Configuración local con credenciales. Nunca se publica.
+.env
+
+# Registros y temporales
+storage/logs/*
+!storage/logs/.gitkeep
+storage/tmp/
+
+# Dependencias
+node_modules/
+vendor/
+
+# Documentos de trabajo del asistente, no forman parte del producto
+docs/superpowers/
+
+# Editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
