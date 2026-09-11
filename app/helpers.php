@@ -14,6 +14,26 @@ function base_path(): string
     return rtrim((string) Env::get('APP_BASE_PATH', ''), '/');
 }
 
+/** Traduce un texto de interfaz. La clave es el propio texto en español. */
+function t(string $texto, array $params = []): string
+{
+    return \App\Core\Idioma::t($texto, $params);
+}
+
+/**
+ * La dirección actual pero en otro idioma, para el conmutador de la barra.
+ *
+ * Conserva la ruta y los filtros que haya puestos: cambiar de idioma no debe
+ * devolver a nadie al principio de lo que estaba mirando.
+ */
+function url_idioma(string $codigo): string
+{
+    $params = array_filter($_GET, 'is_string');
+    $params['lang'] = $codigo;
+
+    return base_path() . '/?' . http_build_query($params);
+}
+
 /** Nonce de la política de contenido, para marcar un script en línea autorizado. */
 function nonce(): string
 {

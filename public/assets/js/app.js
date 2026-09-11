@@ -186,6 +186,7 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('calendarioApp', (cfg) => ({
     filtros: { area_id: '', tipo_accion_id: '', segmento_id: '', estado: '', mios: '', ...cfg.filtros },
     proximos: cfg.proximos || [],
+    txt: cfg.txt || {},
     cal: null, vista: cfg.vistaInicial || 'dayGridMonth', titulo: '',
     detalle: '', detalleAbierto: false, cargando: false,
     anio: cfg.anio || new Date().getFullYear(),
@@ -195,7 +196,7 @@ document.addEventListener('alpine:init', () => {
     foco: '',
     init() {
       this.cal = new FullCalendar.Calendar(this.$refs.cal, {
-        initialView: 'dayGridMonth', initialDate: cfg.fecha, locale: 'es', firstDay: 1,
+        initialView: 'dayGridMonth', initialDate: cfg.fecha, locale: cfg.idioma || 'es', firstDay: 1,
         headerToolbar: false, height: 'auto', fixedWeekCount: false, dayMaxEvents: 4,
         editable: true, eventStartEditable: true, eventDurationEditable: true, eventResizableFromStart: true,
         events: (info, ok, fail) => this.cargar(info, ok, fail),
@@ -206,8 +207,8 @@ document.addEventListener('alpine:init', () => {
         eventDrop: (i) => this.mover(i),
         eventResize: (i) => this.mover(i),
         datesSet: (a) => { this.titulo = a.view.title; },
-        moreLinkContent: (a) => `+${a.num} más`,
-        noEventsContent: 'Sin eventos en este periodo',
+        moreLinkContent: (a) => `+${a.num} ${this.txt.mas}`,
+        noEventsContent: this.txt.sinEventosPeriodo,
       });
       this.cal.render();
       if (cfg.abrir) this.abrir(cfg.abrir);
@@ -337,10 +338,10 @@ document.addEventListener('alpine:init', () => {
       return { background: this.colorCelda(c.n) };
     },
     tituloCelda(c) {
-      if (!c.n) return `${c.f} · sin nada`;
-      return `${c.f} · ${c.n} ${c.n === 1 ? 'evento' : 'eventos'}\n${c.nombres.join('\n')}`;
+      if (!c.n) return `${c.f} · ${this.txt.sinNada}`;
+      return `${c.f} · ${c.n} ${c.n === 1 ? this.txt.evento : this.txt.eventos}\n${c.nombres.join('\n')}`;
     },
-    semanaTexto(s) { return s ? 'semana ' + String(s).split('-')[1] : ''; },
+    semanaTexto(s) { return s ? this.txt.semana + ' ' + String(s).split('-')[1] : ''; },
     irADia(f) { window.location = CRO.url('calendario', { fecha: f, anio: this.anio }); },
     async cargarProximos() {
       const j = await CRO.fetchJson('api/proximos', this.filtros);
@@ -353,7 +354,7 @@ document.addEventListener('alpine:init', () => {
         this.detalle = await res.text();
       } catch (e) {
         this.cargando = false;
-        alert('No se pudo cargar el evento.');
+        alert(this.txt.noCargaEvento);
         return;
       }
       this.cargando = false;
@@ -364,7 +365,7 @@ document.addEventListener('alpine:init', () => {
       const fin = new Date(e.end || e.start); fin.setDate(fin.getDate() - 1);   // fin exclusivo → inclusivo
       const j = await CRO.fetchJson('api/eventos/mover', {}, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: e.id, fecha_inicio: CRO.ymd(e.start), fecha_fin: CRO.ymd(fin) }) });
-      if (!j || !j.ok) { i.revert(); alert((j && j.error) || 'No se pudo mover el evento.'); return; }
+      if (!j || !j.ok) { i.revert(); alert((j && j.error) || this.txt.noMueveEvento); return; }
       if (this.detalleAbierto) this.abrir(e.id);
       this.cargarProximos();
     },

@@ -12,6 +12,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/bootstrap.php';
 
 use App\Core\Auth;
+use App\Core\Idioma;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Router;
@@ -22,6 +23,8 @@ use App\Core\Sesion;
 const RUTAS_PUBLICAS = ['acceso', 'acceso/entrar', 'demo/reiniciar'];
 
 Sesion::iniciar();
+// Antes que nada: las cabeceras y toda la interfaz dependen del idioma elegido.
+Idioma::iniciar();
 Seguridad::cabeceras();
 Auth::iniciar();
 
