@@ -45,6 +45,29 @@ delante.** Si no lo hay, la cabecera `X-Forwarded-For` es falsificable y
 cualquiera podría saltarse el límite de intentos de acceso enviando una
 dirección distinta en cada intento.
 
+### Bases gestionadas y cifrado
+
+Casi todas las bases de datos gestionadas de la nube exigen conexión
+cifrada y rechazan de plano una conexión en claro. Si el arranque se queda
+esperando a la base, lo primero que hay que probar es `DB_SSL=true`.
+
+Merece la pena conocer la trampa que hay detrás, porque es silenciosa: PDO
+**solo** negocia TLS si se le pasa alguna de las opciones `SSL_KEY`,
+`SSL_CERT`, `SSL_CA`, `SSL_CAPATH` o `SSL_CIPHER`. Poner únicamente
+`SSL_VERIFY_SERVER_CERT` no cifra nada y no da ningún aviso: la conexión
+sale en claro como si no se hubiera configurado. Por eso `DB_SSL=true`
+declara siempre una autoridad certificadora, la de `DB_SSL_CA` o la del
+almacén del sistema, y si no encuentra ninguna prefiere fallar antes que
+conectar sin cifrar.
+
+Para comprobarlo sobre una conexión viva:
+
+```sql
+SHOW SESSION STATUS LIKE 'Ssl_cipher';
+```
+
+Un valor vacío significa que no hay cifrado.
+
 ## Reinicio nocturno
 
 La demo es pública y cualquiera puede crear, editar y borrar. Cada madrugada
