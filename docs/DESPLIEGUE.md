@@ -12,6 +12,7 @@ plataforma que acepte un `Dockerfile`.
 | Puerto | El que indique la variable `PORT`; por defecto 80 |
 | Base de datos | MySQL 8 o MariaDB 10.5+. Hacen falta columnas `JSON`, así que **MySQL 5.6 no sirve** |
 | Almacenamiento | Ninguno. El contenedor no guarda estado: todo vive en la base |
+| Reescrituras | Ninguna. El documento raíz apunta a `public/` y las rutas viajan en la cadena de consulta, así que no hacen falta reglas de reescritura ni ficheros `.htaccess` |
 
 El arranque es automático. El `entrypoint` espera a que la base responda, aplica
 `sql/001_schema.sql` (que es idempotente) y siembra los datos de ejemplo si la

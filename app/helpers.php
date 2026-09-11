@@ -14,7 +14,7 @@ function base_path(): string
     return rtrim((string) Env::get('APP_BASE_PATH', ''), '/');
 }
 
-/** url('eventos/nuevo', ['fecha' => '2026-09-16']) → /cal/?r=eventos%2Fnuevo&fecha=2026-09-16 */
+/** url('eventos/nuevo', ['fecha' => '2026-09-16']) → /agenda/?r=eventos%2Fnuevo&fecha=2026-09-16 */
 function url(string $ruta = '', array $params = []): string
 {
     $u = base_path() . '/';
@@ -27,7 +27,7 @@ function url(string $ruta = '', array $params = []): string
     return $u;
 }
 
-/** asset('css/app.css') → /cal/assets/css/app.css?v=<mtime> */
+/** asset('css/app.css') → /agenda/assets/css/app.css?v=<mtime> */
 function asset(string $ruta): string
 {
     $archivo = PUBLIC_PATH . '/assets/' . $ruta;

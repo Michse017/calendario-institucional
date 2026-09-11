@@ -49,12 +49,14 @@ function test_env_bool(): void
 
 function test_helpers_url_y_asset(): void
 {
-    Env::set('APP_BASE_PATH', '/cal');
-    assertEq('/cal/', url());
-    assertEq('/cal/?r=eventos%2Fnuevo&fecha=2026-09-16', url('eventos/nuevo', ['fecha' => '2026-09-16']));
-    assertTrue(str_starts_with(asset('css/app.css'), '/cal/assets/css/app.css?v='));
+    Env::set('APP_BASE_PATH', '/agenda');
+    assertEq('/agenda/', url());
+    assertEq('/agenda/?r=eventos%2Fnuevo&fecha=2026-09-16', url('eventos/nuevo', ['fecha' => '2026-09-16']));
+    assertTrue(str_starts_with(asset('css/app.css'), '/agenda/assets/css/app.css?v='));
     Env::set('APP_BASE_PATH', '');
     assertEq('/?r=calendario', url('calendario'));
     assertEq('&lt;b&gt;&quot;', h('<b>"'));
-    Env::set('APP_BASE_PATH', '/cal');
+    // Se restaura el valor por defecto: dejarlo puesto contaminaria las
+    // pruebas siguientes, que dan por hecho que la aplicacion cuelga de la raiz.
+    Env::set('APP_BASE_PATH', '');
 }
