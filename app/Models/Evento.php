@@ -28,7 +28,7 @@ final class Evento
         JOIN catalogo_valores ci  ON ci.id  = e.ciudad_id
         JOIN catalogo_valores me  ON me.id  = e.mercado_id
         JOIN catalogo_valores org ON org.id = e.organizador_id
-        LEFT JOIN accesos ac ON ac.id = e.creado_por';
+        LEFT JOIN usuarios ac ON ac.id = e.creado_por';
 
     /** Joins mínimos para COUNT/GROUP con los mismos filtros (q usa ci y org). */
     private const FROM_CORTO = 'FROM eventos e
@@ -124,8 +124,8 @@ final class Evento
             FROM eventos e
             JOIN catalogo_valores ar ON ar.id = e.area_id
             JOIN catalogo_valores ci ON ci.id = e.ciudad_id
-            LEFT JOIN accesos ac ON ac.id = e.creado_por
-            LEFT JOIN accesos el ON el.id = e.eliminado_por
+            LEFT JOIN usuarios ac ON ac.id = e.creado_por
+            LEFT JOIN usuarios el ON el.id = e.eliminado_por
             WHERE e.eliminado_en IS NOT NULL
             ORDER BY e.eliminado_en DESC, e.id DESC LIMIT ' . $lim);
         $st->execute();

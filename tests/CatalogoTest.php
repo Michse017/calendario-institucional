@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use App\Models\Acceso;
+use App\Models\Usuario;
 use App\Models\Catalogo;
 
 function test_catalogo_resolver_crea_y_reutiliza(): void
@@ -116,21 +116,23 @@ function test_catalogo_resolver_reactiva_inactivo(): void
     });
 }
 
-function test_catalogo_unir_areas_reasigna_accesos(): void
+function test_catalogo_unir_areas_reasigna_usuarios(): void
 {
     conDb(function (PDO $pdo): void {
         $origen = Catalogo::resolver('area', 'Xqz Área Origen');
         $destino = Catalogo::resolver('area', 'Xqz Área Destino');
-        Acceso::otorgar(900021, 'Xqz Uno', 'usuario', $origen);
-        Catalogo::unir($origen, $destino);
-        assertEq($destino, (int) Acceso::porId(900021)['area_id'], 'el acceso queda reasignado al destino');
-        assertEq(0, (int) Catalogo::valor($origen)['activo'], 'el origen queda desactivado');
 
-        Acceso::otorgar(900022, 'Xqz Dos', 'usuario', $destino);
+        $uno = Usuario::crear('Xqz Uno', 'xqz.uno@prueba.local', 'clave12345', 'usuario', $origen);
+        Catalogo::unir($origen, $destino);
+        assertEq($destino, (int) Usuario::porId($uno)['area_id'], 'el usuario queda reasignado al área destino');
+        assertEq(0, (int) Catalogo::valor($origen)['activo'], 'el área origen queda desactivada');
+
+        $dos = Usuario::crear('Xqz Dos', 'xqz.dos@prueba.local', 'clave12345', 'usuario', $destino);
         assertLanza(fn() => Catalogo::activar($destino, false), 'no se desactiva un área con usuarios');
-        // 900021 llegó al área destino por el "unir" de arriba: también hay que reasignarlo (no solo al recién creado).
-        Acceso::cambiarArea(900021, null);
-        Acceso::cambiarArea(900022, null);
+
+        // El primero llegó al área destino por el "unir" de arriba: hay que sacarlo también.
+        Usuario::actualizar($uno, 'Xqz Uno', 'usuario', null);
+        Usuario::actualizar($dos, 'Xqz Dos', 'usuario', null);
         Catalogo::activar($destino, false);
         assertEq(0, (int) Catalogo::valor($destino)['activo'], 'sin usuarios activos ya se puede desactivar');
     });

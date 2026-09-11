@@ -21,7 +21,7 @@ final class Historial
                        COALESCE(a.nombre, CONCAT(\'Usuario #\', h.usuario_id)) AS usuario_nombre
                 FROM eventos_historial h
                 JOIN eventos e ON e.id = h.evento_id
-                LEFT JOIN accesos a ON a.id = h.usuario_id';
+                LEFT JOIN usuarios a ON a.id = h.usuario_id';
         $p = [];
         if ($eventoId !== null) {
             $sql .= ' WHERE h.evento_id = ?';

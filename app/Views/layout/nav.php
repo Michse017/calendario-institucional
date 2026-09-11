@@ -21,7 +21,7 @@ $iniciales = mb_strtoupper(mb_substr($palabras[0] ?? '?', 0, 1) . (count($palabr
       <a href="<?= h(url('calendario')) ?>" class="<?= $activo('calendario') ?>">Calendario</a>
       <a href="<?= h(url('eventos')) ?>" class="<?= $activo('eventos') ?>">Eventos</a>
       <a href="<?= h(url('dashboard')) ?>" class="<?= $activo('dashboard') ?>">Dashboard</a>
-      <?php if (es_admin()): ?><a href="<?= h(url('admin/accesos')) ?>" class="<?= $activo('admin') ?>">Admin</a><?php endif; ?>
+      <?php if (es_admin()): ?><a href="<?= h(url('admin/usuarios')) ?>" class="<?= $activo('admin') ?>">Admin</a><?php endif; ?>
     </nav>
 
     <div class="ml-auto flex items-center gap-2">
@@ -49,7 +49,10 @@ $iniciales = mb_strtoupper(mb_substr($palabras[0] ?? '?', 0, 1) . (count($palabr
           <?php if (($u['area_id'] ?? 0) > 0): ?>
           <a href="<?= h(url('eventos', ['mios' => 1])) ?>" class="block rounded-lg px-3 py-2 hover:bg-[#F0EEE8] dark:hover:bg-[#232834]">Mi área</a>
           <?php endif; ?>
-          <a href="<?= h(url('panel')) ?>" class="block rounded-lg px-3 py-2 hover:bg-[#F0EEE8] dark:hover:bg-[#232834]">Panel General</a>
+          <form method="post" action="<?= h(url('salir')) ?>">
+            <?= csrf_campo() ?>
+            <button type="submit" class="block w-full rounded-lg px-3 py-2 text-left hover:bg-[#F0EEE8] dark:hover:bg-[#232834]">Cerrar sesión</button>
+          </form>
         </div>
       </div>
     </div>
@@ -58,7 +61,7 @@ $iniciales = mb_strtoupper(mb_substr($palabras[0] ?? '?', 0, 1) . (count($palabr
     <a href="<?= h(url('calendario')) ?>" class="<?= $activo('calendario') ?>">Calendario</a>
     <a href="<?= h(url('eventos')) ?>" class="<?= $activo('eventos') ?>">Eventos</a>
     <a href="<?= h(url('dashboard')) ?>" class="<?= $activo('dashboard') ?>">Dashboard</a>
-    <?php if (es_admin()): ?><a href="<?= h(url('admin/accesos')) ?>" class="<?= $activo('admin') ?>">Admin</a><?php endif; ?>
+    <?php if (es_admin()): ?><a href="<?= h(url('admin/usuarios')) ?>" class="<?= $activo('admin') ?>">Admin</a><?php endif; ?>
   </nav>
 </header>
 <style>[x-cloak]{display:none!important}</style>

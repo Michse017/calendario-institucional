@@ -5,12 +5,15 @@ declare(strict_types=1);
 
 use App\Controllers\AdminController;
 use App\Controllers\ApiController;
+use App\Controllers\AuthController;
 use App\Controllers\CalendarioController;
 use App\Controllers\DashboardController;
 use App\Controllers\EventoController;
-use App\Core\Request;
-use App\Core\Response;
-use App\Core\SsoBridge;
+
+// Únicas rutas accesibles sin haber entrado (ver RUTAS_PUBLICAS en public/index.php).
+$router->get('acceso', [AuthController::class, 'formulario']);
+$router->post('acceso/entrar', [AuthController::class, 'entrar']);
+$router->post('salir', [AuthController::class, 'salir']);
 
 $router->get('calendario', [CalendarioController::class, 'index']);
 $router->get('dashboard', [DashboardController::class, 'index']);
@@ -32,11 +35,8 @@ $router->post('eventos/eliminar', [EventoController::class, 'eliminar']);
 $router->post('eventos/cancelar', [EventoController::class, 'cancelar']);
 $router->post('eventos/reanudar', [EventoController::class, 'reanudar']);
 $router->post('eventos/estado', [EventoController::class, 'estado']);
-$router->get('panel', static function (Request $r): void {
-    Response::redirigir(SsoBridge::panelUrl());
-});
-$router->get('admin/accesos', [AdminController::class, 'accesos']);
-$router->post('admin/accesos', [AdminController::class, 'accesosGuardar']);
+$router->get('admin/usuarios', [AdminController::class, 'usuarios']);
+$router->post('admin/usuarios', [AdminController::class, 'usuariosGuardar']);
 $router->get('admin/catalogos', [AdminController::class, 'catalogos']);
 $router->post('admin/catalogos', [AdminController::class, 'catalogosGuardar']);
 $router->get('admin/historial', [AdminController::class, 'historial']);

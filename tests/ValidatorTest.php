@@ -32,8 +32,32 @@ function test_validator_todos_obligatorios(): void
 {
     $r = Validator::evento([]);
     assertEq(false, $r['ok']);
-    foreach (['nombre', 'fecha_inicio', 'fecha_fin', 'estado', 'tipo_accion', 'segmento', 'area', 'linea_estrategica', 'pais', 'ciudad', 'mercado', 'organizador', 'objetivo', 'resultados', 'alianzas', 'observaciones', 'contactos_url', 'evidencia_url', 'reuniones'] as $c) {
+
+    // Todos los campos son obligatorios menos los de Campos::AUTO_NA, que al
+    // quedar vacíos se rellenan solos con N/A en lugar de dar error.
+    $obligatorios = [
+        'nombre', 'fecha_inicio', 'fecha_fin', 'estado', 'tipo_accion', 'segmento', 'area',
+        'linea_estrategica', 'pais', 'ciudad', 'mercado', 'organizador', 'objetivo',
+        'alianzas', 'contactos_url', 'evidencia_url', 'reuniones',
+    ];
+    foreach ($obligatorios as $c) {
         assertTrue(isset($r['errores'][$c]), "falta error en $c");
+    }
+    foreach (App\Core\Campos::AUTO_NA as $c) {
+        assertTrue(!isset($r['errores'][$c]), "$c no debe dar error: se rellena solo con N/A");
+    }
+}
+
+function test_validator_auto_na_rellena_los_campos_opcionales(): void
+{
+    $datos = datosEvento();
+    foreach (App\Core\Campos::AUTO_NA as $c) {
+        $datos[$c] = '';
+    }
+    $r = Validator::evento($datos);
+    assertEq(true, $r['ok'], 'dejar vacíos los campos de relleno automático no invalida el evento');
+    foreach (App\Core\Campos::AUTO_NA as $c) {
+        assertEq('N/A', $r['datos'][$c], "$c debe quedar en N/A");
     }
 }
 

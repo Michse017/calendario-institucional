@@ -5,10 +5,10 @@ declare(strict_types=1);
 function datosEvento(array $extra = []): array
 {
     return $extra + [
-        'nombre' => 'Xfit Argentina', 'fecha_inicio' => '2026-09-26', 'fecha_fin' => '2026-09-28', 'estado' => 'no_realizado',
-        'tipo_accion' => 'Participación en Ferias', 'segmento' => 'MICE', 'area' => 'Promoción y Mercadeo',
-        'linea_estrategica' => 'N/A', 'pais' => 'Xargentina', 'ciudad' => 'Xbuenos Aires', 'mercado' => 'Xcono Sur', 'organizador' => 'Xfaevyt',
-        'objetivo' => 'Promover', 'resultados' => 'N/A', 'alianzas' => 'N/A', 'observaciones' => 'N/A',
+        'nombre' => 'Xciclo de Jazz', 'fecha_inicio' => '2026-09-26', 'fecha_fin' => '2026-09-28', 'estado' => 'no_realizado',
+        'tipo_accion' => 'Concierto', 'segmento' => 'Público general', 'area' => 'Programación',
+        'linea_estrategica' => 'C1. Ampliar el acceso de la ciudadanía a la programación cultural', 'pais' => 'Xandalia', 'ciudad' => 'Xpuerto Sereno', 'mercado' => 'Xregional', 'organizador' => 'Xmeridiano',
+        'objetivo' => 'Acercar el jazz a nuevos públicos', 'resultados' => 'N/A', 'alianzas' => 'N/A', 'observaciones' => 'N/A',
         'contactos_url' => 'N/A', 'evidencia_url' => 'Pendiente', 'reuniones' => '0',
     ];
 }

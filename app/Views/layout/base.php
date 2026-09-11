@@ -15,7 +15,7 @@
 </script>
 </head>
 <body class="min-h-screen" x-data="app()">
-<?php include APP_PATH . '/Views/layout/nav.php'; ?>
+<?php if (empty($sinNav)) { include APP_PATH . '/Views/layout/nav.php'; } ?>
 <?php if ($f = flash()): ?>
   <div class="mx-auto max-w-[1440px] px-4 pt-4 sm:px-6 lg:px-8" x-data="avisoFlash(6)" x-show="ver" x-cloak
        @mouseenter="pausar()" @mouseleave="seguir()"
@@ -32,7 +32,7 @@
 <main class="<?= ($ancho ?? '') === 'completo' ? 'w-full px-4 sm:px-6 lg:px-8' : 'mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8' ?> py-6">
 <?= $contenido ?>
 </main>
-<?php include APP_PATH . '/Views/layout/paleta.php'; ?>
+<?php if (empty($sinNav)) { include APP_PATH . '/Views/layout/paleta.php'; } ?>
 <script src="<?= h(asset('js/app.js')) ?>"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.14.9/dist/cdn.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>

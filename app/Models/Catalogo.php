@@ -243,7 +243,7 @@ final class Catalogo
 
     /**
      * Mueve los eventos del origen al destino, suma los usos y desactiva el origen.
-     * Si el campo es 'area', también reasigna a los usuarios (accesos.area_id) del origen al destino,
+     * Si el campo es 'area', también reasigna a los usuarios (usuarios.area_id) del origen al destino,
      * para que unir un área no deje a nadie apuntando a un valor desactivado.
      */
     public static function unir(int $origenId, int $destinoId): void
@@ -267,7 +267,7 @@ final class Catalogo
         Database::transaccion(static function (PDO $pdo) use ($col, $origenId, $destinoId, $usosOrigen, $esArea): void {
             $pdo->prepare("UPDATE eventos SET $col = ? WHERE $col = ?")->execute([$destinoId, $origenId]);
             if ($esArea) {
-                $pdo->prepare('UPDATE accesos SET area_id = ? WHERE area_id = ?')->execute([$destinoId, $origenId]);
+                $pdo->prepare('UPDATE usuarios SET area_id = ? WHERE area_id = ?')->execute([$destinoId, $origenId]);
             }
             $pdo->prepare('UPDATE catalogo_valores SET usos = usos + ? WHERE id = ?')->execute([$usosOrigen, $destinoId]);
             $pdo->prepare('UPDATE catalogo_valores SET usos = 0, activo = 0 WHERE id = ?')->execute([$origenId]);
@@ -282,7 +282,7 @@ final class Catalogo
         }
         self::exigirNoNA($fila, $activo ? 'activar' : 'desactivar');
         if (!$activo && $fila['campo'] === 'area') {
-            $st = Database::pdo()->prepare("SELECT COUNT(*) FROM accesos WHERE area_id = ? AND estado = 'activo'");
+            $st = Database::pdo()->prepare('SELECT COUNT(*) FROM usuarios WHERE area_id = ? AND activo = 1');
             $st->execute([$id]);
             $n = (int) $st->fetchColumn();
             if ($n > 0) {

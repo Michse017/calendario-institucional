@@ -3,51 +3,66 @@ declare(strict_types=1);
 
 namespace App\Core;
 
+use App\Models\Usuario;
 use Throwable;
 
-/** Usuario actual y reglas de permiso: admin todo; usuario solo los eventos de su área. */
+/**
+ * Usuario actual y reglas de permiso.
+ *
+ * La regla de fondo es una sola y se lee en `puedeEditar()`: un administrador
+ * puede con todo, y cualquier otra persona solo con los eventos de su área.
+ * Todo lo demás de esta clase existe para sostener esa frase.
+ */
 final class Auth
 {
     private static ?array $usuario = null;
 
-    /** Construye el usuario actual a partir del SSO + rol y área en accesos. Llamar tras SsoBridge::boot(). */
+    /**
+     * Reconstruye el usuario actual a partir de la sesión.
+     *
+     * No decide si la ruta es pública ni redirige: de eso se encarga el punto de
+     * entrada. Aquí, si no hay sesión válida, simplemente no hay usuario.
+     */
     public static function iniciar(): void
     {
-        $u = SsoBridge::usuario();
-        if ($u === null) {
-            Response::error(403, 'No hay sesión del SSO.');
+        $id = (int) ($_SESSION['usuario_id'] ?? 0);
+        if ($id <= 0) {
+            return;
         }
-        // 'empleado' es el rol con el que el panel SSO otorga acceso (contrato del wizard): equivale a
-        // 'usuario' sin área, es decir, solo consulta hasta que un admin le asigne área desde Admin › Accesos.
-        $rol = 'usuario';
-        if (($u['rol_global'] === 'admin' && $u['id'] === 1) || $u['rol_local'] === 'admin') {
-            $rol = 'admin';
-        } elseif ($u['id'] !== 1 && !in_array($u['rol_local'], ['admin', 'usuario', 'empleado'], true)) {
-            Response::error(403, 'No tienes acceso a esta plataforma. Pide al administrador que te otorgue acceso.');
+
+        try {
+            $u = Usuario::porId($id);
+        } catch (Throwable $e) {
+            error_log('calendario: no se pudo cargar el usuario ' . $id . ': ' . $e->getMessage());
+            return;
         }
-        $area = self::cargarArea((int) $u['id']);
+
+        // La cuenta pudo darse de baja con la sesión ya abierta: se cierra en el acto.
+        if ($u === null || (int) $u['activo'] !== 1) {
+            Sesion::cerrar();
+            return;
+        }
+
+        $area = self::cargarArea((int) ($u['area_id'] ?? 0));
+
         self::$usuario = [
-            'id'          => $u['id'],
-            'nombre'      => $u['nombre'],
-            'rol'         => $rol,
+            'id'          => (int) $u['id'],
+            'nombre'      => (string) $u['nombre'],
+            'rol'         => (string) $u['rol'],
             'area_id'     => (int) ($area['id'] ?? 0),
             'area_nombre' => (string) ($area['valor'] ?? ''),
         ];
-
-        // Mantener el nombre al día en accesos para mostrar "creado por" sin consultar el SSO.
-        try {
-            Database::pdo()->prepare('UPDATE accesos SET nombre = ? WHERE id = ? AND nombre <> ?')
-                ->execute([$u['nombre'], $u['id'], $u['nombre']]);
-        } catch (Throwable $e) {
-            // Sin BD no bloqueamos la entrada, pero dejamos rastro en storage/logs/php-errors.log.
-            error_log('cal: no se pudo sincronizar accesos.nombre para el usuario ' . $u['id'] . ': ' . $e->getMessage());
-        }
     }
 
-    /** Para pruebas y scripts CLI. Completa las claves del área si faltan. */
+    /** Para pruebas y guiones de consola. Completa las claves del área si faltan. */
     public static function fijar(array $usuario): void
     {
         self::$usuario = $usuario + ['area_id' => 0, 'area_nombre' => ''];
+    }
+
+    public static function hayUsuario(): bool
+    {
+        return self::$usuario !== null;
     }
 
     /** @return array{id:int,nombre:string,rol:string,area_id:int,area_nombre:string} */
@@ -71,7 +86,7 @@ final class Auth
         return $areaUsuario > 0 && (int) ($evento['area_id'] ?? 0) === $areaUsuario;
     }
 
-    /** Crear exige ser admin o tener área (el evento nace en el área del creador). */
+    /** Crear exige ser admin o tener área: el evento nace en el área de quien lo crea. */
     public static function puedeCrear(array $usuario): bool
     {
         return ($usuario['rol'] ?? '') === 'admin' || (int) ($usuario['area_id'] ?? 0) > 0;
@@ -99,22 +114,25 @@ final class Auth
     }
 
     /**
-     * Área del acceso (id, valor) desde accesos.area_id; sin BD, sin área o con el área desactivada
-     * devuelve null (equivale a "sin área", no bloquea la entrada).
+     * Área del usuario a partir de su `area_id`.
+     *
+     * Devuelve null si no tiene área o si el área fue desactivada, lo que equivale
+     * a "solo consulta" y no impide entrar.
      */
-    private static function cargarArea(int $id): ?array
+    private static function cargarArea(int $areaId): ?array
     {
+        if ($areaId <= 0) {
+            return null;
+        }
         try {
             $st = Database::pdo()->prepare(
-                "SELECT c.id, c.valor FROM accesos a
-                 JOIN catalogo_valores c ON c.id = a.area_id AND c.campo = 'area' AND c.activo = 1
-                 WHERE a.id = ?"
+                "SELECT id, valor FROM catalogo_valores
+                 WHERE id = ? AND campo = 'area' AND activo = 1"
             );
-            $st->execute([$id]);
-            $f = $st->fetch();
-            return $f ?: null;
+            $st->execute([$areaId]);
+            return $st->fetch() ?: null;
         } catch (Throwable $e) {
-            error_log('cal: no se pudo cargar el área del usuario ' . $id . ': ' . $e->getMessage());
+            error_log('calendario: no se pudo cargar el área ' . $areaId . ': ' . $e->getMessage());
             return null;
         }
     }

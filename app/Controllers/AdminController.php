@@ -9,10 +9,10 @@ use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\Request;
 use App\Core\Response;
-use App\Models\Acceso;
 use App\Models\Catalogo;
 use App\Models\Evento;
 use App\Models\Historial;
+use App\Models\Usuario;
 use Throwable;
 
 final class AdminController extends Controller
@@ -22,51 +22,116 @@ final class AdminController extends Controller
         Auth::exigirAdmin();
     }
 
-    public function accesos(Request $req): void
+    public function usuarios(Request $req): void
     {
         $areasCatalogo = array_values(array_filter(Catalogo::areas(), static fn(array $a): bool => $a['valor_norm'] !== 'n/a'));
-        $this->vista('admin/accesos', [
-            'titulo' => 'Accesos', 'accesos' => Acceso::listar(), 'candidatos' => Acceso::candidatosSso(),
-            'areasCatalogo' => $areasCatalogo, 'tab' => 'accesos',
+        $this->vista('admin/usuarios', [
+            'titulo' => 'Usuarios', 'usuarios' => Usuario::listar(),
+            'areasCatalogo' => $areasCatalogo, 'tab' => 'usuarios',
         ]);
     }
 
-    public function accesosGuardar(Request $req): void
+    public function usuariosGuardar(Request $req): void
     {
         Csrf::exigir();
         $id = $req->int('id');
         $accion = (string) $req->post('accion', '');
+        $yo = Auth::usuario()['id'];
+
         try {
-            if ($id === Auth::usuario()['id'] && in_array($accion, ['revocar', 'rol', 'otorgar'], true)) {
-                throw new \RuntimeException('No puedes cambiar tu propio acceso.');
+            // Nadie puede degradarse ni darse de baja a sí mismo: así no se pierde
+            // el acceso de administración por un clic descuidado.
+            if ($id === $yo && in_array($accion, ['rol', 'baja'], true)) {
+                throw new \RuntimeException('No puedes cambiar tu propio rol ni darte de baja.');
             }
-            if ($accion === 'otorgar' && $id <= 0) {
-                throw new \InvalidArgumentException('Selecciona un usuario del SSO.');
-            }
+
             $areaId = $req->int('area_id');
             match ($accion) {
-                'otorgar'   => $this->otorgar($req, $id, $areaId),
-                'rol'       => Acceso::cambiarRol($id, (string) $req->post('rol', 'usuario')),
-                'area'      => Acceso::cambiarArea($id, $areaId > 0 ? $areaId : null),
-                'revocar'   => Acceso::revocar($id),
-                'reactivar' => Acceso::reactivar($id),
-                default     => throw new \RuntimeException('Acción desconocida.'),
+                'crear'       => $this->crearUsuario($req, $areaId),
+                'editar'      => $this->editarUsuario($req, $id, $areaId),
+                'contrasena'  => $this->restablecerContrasena($req, $id),
+                'baja'        => $this->cambiarEstado($id, false),
+                'alta'        => $this->cambiarEstado($id, true),
+                default       => throw new \RuntimeException('Acción desconocida.'),
             };
-            flash('ok', 'Acceso actualizado.');
         } catch (Throwable $e) {
             flash('error', $e->getMessage());
         }
-        Response::redirigir(url('admin/accesos'));
+        Response::redirigir(url('admin/usuarios'));
     }
 
-    /** Otorgar exige área cuando el rol es usuario (sin área solo podría consultar). */
-    private function otorgar(Request $req, int $id, int $areaId): void
+    private function crearUsuario(Request $req, int $areaId): void
     {
-        $rol = (string) $req->post('rol', 'usuario');
-        if ($rol === 'usuario' && $areaId <= 0) {
-            throw new \InvalidArgumentException('Elige el área del usuario: sin área solo podría consultar.');
+        $nombre = trim((string) $req->post('nombre', ''));
+        $correo = trim((string) $req->post('correo', ''));
+        $clave  = (string) $req->post('contrasena', '');
+        $rol    = (string) $req->post('rol', 'usuario');
+
+        if ($nombre === '') {
+            throw new \InvalidArgumentException('Escribe el nombre.');
         }
-        Acceso::otorgar($id, (string) $req->post('nombre', ''), $rol, $areaId > 0 ? $areaId : null);
+        if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+            throw new \InvalidArgumentException('El correo no es válido.');
+        }
+        if (Usuario::correoExiste($correo)) {
+            throw new \InvalidArgumentException('Ya existe un usuario con ese correo.');
+        }
+        if (mb_strlen($clave) < 8) {
+            throw new \InvalidArgumentException('La contraseña debe tener al menos 8 caracteres.');
+        }
+        // Sin área solo podría consultar, así que para un usuario normal es obligatoria.
+        if ($rol === 'usuario' && $areaId <= 0) {
+            throw new \InvalidArgumentException('Elige el área: sin área la persona solo podría consultar.');
+        }
+
+        Usuario::crear($nombre, $correo, $clave, $rol, $areaId > 0 ? $areaId : null);
+        flash('ok', 'Usuario creado.');
+    }
+
+    private function editarUsuario(Request $req, int $id, int $areaId): void
+    {
+        $nombre = trim((string) $req->post('nombre', ''));
+        $rol    = (string) $req->post('rol', 'usuario');
+
+        if ($id <= 0 || Usuario::porId($id) === null) {
+            throw new \InvalidArgumentException('Ese usuario no existe.');
+        }
+        if ($nombre === '') {
+            throw new \InvalidArgumentException('Escribe el nombre.');
+        }
+        if ($rol === 'usuario' && $areaId <= 0) {
+            throw new \InvalidArgumentException('Elige el área: sin área la persona solo podría consultar.');
+        }
+
+        Usuario::actualizar($id, $nombre, $rol, $areaId > 0 ? $areaId : null);
+        flash('ok', 'Usuario actualizado.');
+    }
+
+    private function restablecerContrasena(Request $req, int $id): void
+    {
+        $clave = (string) $req->post('contrasena', '');
+        if ($id <= 0 || Usuario::porId($id) === null) {
+            throw new \InvalidArgumentException('Ese usuario no existe.');
+        }
+        if (mb_strlen($clave) < 8) {
+            throw new \InvalidArgumentException('La contraseña debe tener al menos 8 caracteres.');
+        }
+        Usuario::cambiarContrasena($id, $clave);
+        flash('ok', 'Contraseña restablecida.');
+    }
+
+    /** La baja es lógica: la fila permanece para que el historial siga teniendo autor. */
+    private function cambiarEstado(int $id, bool $activo): void
+    {
+        $u = Usuario::porId($id);
+        if ($u === null) {
+            throw new \InvalidArgumentException('Ese usuario no existe.');
+        }
+        if (!$activo && $u['rol'] === 'admin' && Usuario::administradoresActivos() <= 1) {
+            throw new \RuntimeException('Es el único administrador activo. Nombra otro antes de darlo de baja.');
+        }
+        Usuario::activar($id, $activo);
+        flash('ok', $activo ? 'Usuario reactivado.' : 'Usuario dado de baja.');
     }
 
     public function catalogos(Request $req): void
