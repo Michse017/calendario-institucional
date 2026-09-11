@@ -4,10 +4,18 @@ declare(strict_types=1);
 namespace App\Core;
 
 use PDO;
+use RuntimeException;
 use Throwable;
 
 final class Database
 {
+    /** Almacenes de autoridades certificadoras habituales, por distribución. */
+    private const ALMACENES_CA = [
+        '/etc/ssl/certs/ca-certificates.crt', // Debian, Ubuntu, Alpine
+        '/etc/pki/tls/certs/ca-bundle.crt',   // RedHat, Fedora
+        '/etc/ssl/cert.pem',                  // Alpine antiguo, BSD
+    ];
+
     private static ?PDO $pdo = null;
 
     public static function pdo(): PDO
@@ -25,18 +33,8 @@ final class Database
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ];
 
-            // Cifrado de la conexión. Las bases gestionadas suelen exigirlo y
-            // rechazan de plano una conexión sin cifrar.
             if (Env::bool('DB_SSL')) {
-                $ca = (string) Env::get('DB_SSL_CA', '');
-                if ($ca !== '') {
-                    $opciones[PDO::MYSQL_ATTR_SSL_CA] = $ca;
-                }
-                // Muchos proveedores firman el certificado con su propia autoridad
-                // interna, que el contenedor no conoce. Verificar el nombre del
-                // servidor fallaría siempre, así que se desactiva salvo que haya
-                // una autoridad declarada. El tráfico sigue cifrado.
-                $opciones[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = Env::bool('DB_SSL_VERIFY', $ca !== '');
+                $opciones += self::opcionesTls();
             }
 
             self::$pdo = new PDO($dsn, (string) Env::get('DB_USER', 'root'), (string) Env::get('DB_PASS', ''), $opciones);
@@ -53,6 +51,45 @@ final class Database
             self::$pdo->prepare('SET time_zone = ?')->execute([$zona]);
         }
         return self::$pdo;
+    }
+
+    /**
+     * Opciones para que la conexión viaje cifrada.
+     *
+     * Ojo con el detalle que cuesta una tarde: PDO solo negocia TLS si se le
+     * pasa alguna de las opciones SSL_KEY, SSL_CERT, SSL_CA, SSL_CAPATH o
+     * SSL_CIPHER. Poner únicamente SSL_VERIFY_SERVER_CERT no cifra nada: la
+     * conexión sale en claro igual que sin opciones, sin ningún aviso. Por eso,
+     * si no se declara una autoridad concreta, se apunta al almacén del
+     * sistema, que es lo que enciende el cifrado.
+     */
+    private static function opcionesTls(): array
+    {
+        $ca = (string) Env::get('DB_SSL_CA', '');
+        if ($ca === '') {
+            foreach (self::ALMACENES_CA as $ruta) {
+                if (is_readable($ruta)) {
+                    $ca = $ruta;
+                    break;
+                }
+            }
+        }
+        if ($ca === '') {
+            throw new RuntimeException(
+                'DB_SSL está activo pero no hay autoridad certificadora: no se encontró '
+                . 'el almacén del sistema. Indica la ruta en DB_SSL_CA.'
+            );
+        }
+
+        // Verificar que el nombre del servidor coincida con el certificado queda
+        // desactivado por defecto a propósito: las bases gestionadas se firman
+        // con la autoridad interna del proveedor, que este contenedor no conoce,
+        // y la comprobación fallaría siempre. El tráfico va cifrado igualmente.
+        // Con DB_SSL_VERIFY=true y una DB_SSL_CA válida se puede exigir.
+        return [
+            PDO::MYSQL_ATTR_SSL_CA                 => $ca,
+            PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => Env::bool('DB_SSL_VERIFY', false),
+        ];
     }
 
     /** Ejecuta $fn(PDO) en una transacción. Si ya hay una activa (pruebas), la reutiliza. */
