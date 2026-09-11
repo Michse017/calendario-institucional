@@ -71,12 +71,14 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci
-      - name: Recompilar y comprobar que no hay diferencias
-        # Si alguien edita el CSS compilado a mano en lugar del fuente, esto lo caza.
+      - name: Recompilar y comprobar que no falta ninguna clase propia
+        # Vigila el caso real: que alguien escriba una regla directamente en el CSS
+        # compilado y la pierda en la siguiente compilacion. No compara byte a byte
+        # porque la salida de Tailwind depende del sistema de archivos.
         run: |
+          cp public/assets/css/app.css /tmp/compilado-versionado.css
           npm run build
-          git diff --exit-code -- public/assets/css/app.css \
-            || { echo "::error::El CSS compilado no coincide con el fuente. Ejecuta 'npm run build' y vuelve a enviar."; exit 1; }
+          node bin/verificar_css.mjs /tmp/compilado-versionado.css public/assets/css/app.css
 
   imagen:
     name: La imagen de Docker se construye
