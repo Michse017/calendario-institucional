@@ -41,6 +41,19 @@ const AREAS = [
     ['Administración',  '#3E8E3A'],
 ];
 
+/**
+ * Bolsa ponderada de áreas. Repetir un nombre aumenta su probabilidad, de modo
+ * que la agenda se parezca a la de un centro real: casi la mitad de lo que pasa
+ * es programación, y administración apenas asoma.
+ */
+const PESOS_AREA = [
+    'Programación', 'Programación', 'Programación', 'Programación', 'Programación', 'Programación', 'Programación',
+    'Educación', 'Educación', 'Educación', 'Educación',
+    'Comunicaciones', 'Comunicaciones', 'Comunicaciones',
+    'Producción', 'Producción', 'Producción',
+    'Administración',
+];
+
 const CATALOGOS = [
     'tipo_accion' => [
         'Concierto', 'Exposición', 'Taller', 'Función de teatro', 'Conferencia',
@@ -224,16 +237,16 @@ for ($mes = 1; $mes <= 12; $mes++) {
             $dia = min($diasDelMes, max(1, $dia - mt_rand(0, 2)));
         }
 
-        $area = AREAS[array_rand(AREAS)][0];
+        $area = PESOS_AREA[array_rand(PESOS_AREA)];
         $plantilla = PLANTILLAS[$area][array_rand(PLANTILLAS[$area])];
         [$nombre, $tipo, $publico, $objetivo] = $plantilla;
 
         // Duración: casi todo dura un día, algunas cosas se alargan.
         $duracion = match (true) {
-            $tipo === 'Exposición'          => mt_rand(15, 40),
-            $tipo === 'Festival'            => mt_rand(2, 4),
-            $tipo === 'Residencia artística' => mt_rand(10, 21),
-            default                          => mt_rand(0, 2),
+            $tipo === 'Exposición'           => mt_rand(8, 18),
+            $tipo === 'Festival'             => mt_rand(2, 4),
+            $tipo === 'Residencia artística' => mt_rand(6, 12),
+            default                           => mt_rand(0, 1),
         };
 
         $inicio = sprintf('%04d-%02d-%02d', $anio, $mes, $dia);
@@ -263,7 +276,9 @@ for ($mes = 1; $mes <= 12; $mes++) {
             'fecha_fin'         => $fin,
             'estado'            => $estado === 'cancelado' ? 'no_realizado' : $estado,
             'tipo_accion'       => $tipo,
+            'tipo_accion_otro'  => '',   // solo se usa cuando el tipo es "Otros"
             'segmento'          => $publico,
+            'segmento_otro'     => '',
             'area'              => $area,
             'linea_estrategica' => $lineas[array_rand($lineas)],
             'pais'              => 'Andalia',

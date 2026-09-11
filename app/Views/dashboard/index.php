@@ -24,14 +24,14 @@ $tono = static function (string $hex, int $n) use ($mx): array {
 $tarjetas = [
     ['Eventos', $t['total'], $t['realizados'] . ' realizados · ' . $t['cancelados'] . ' cancelados'],
     ['Cancelados', $t['cancelados'], 'no cuentan en los indicadores'],
-    ['Ferias', $k['ferias']['total'], $k['ferias']['realizados'] . ' realizadas'],
-    ['Workshops / misiones', $k['workshops']['total'], $k['workshops']['realizados'] . ' realizados'],
-    ['Fam trips', $k['fam_trips']['total'], $k['fam_trips']['realizados'] . ' realizados'],
-    ['Press trips', $k['press_trips']['total'], $k['press_trips']['realizados'] . ' realizados'],
-    ['Ruedas de negocio', $k['ruedas']['total'], $k['ruedas']['realizados'] . ' realizadas'],
-    ['Eventos MICE', $k['mice']['total'], $k['mice']['realizados'] . ' realizados'],
-    ['Países', $t['paises'], $t['ciudades'] . ' ciudades'],
-    ['Reuniones', $t['reuniones'], 'registradas con número'],
+    ['Conciertos', $k['conciertos']['total'], $k['conciertos']['realizados'] . ' realizados'],
+    ['Exposiciones', $k['exposiciones']['total'], $k['exposiciones']['realizados'] . ' realizadas'],
+    ['Talleres', $k['talleres']['total'], $k['talleres']['realizados'] . ' realizados'],
+    ['Artes escénicas', $k['escenicas']['total'], $k['escenicas']['realizados'] . ' realizadas'],
+    ['Festivales', $k['festivales']['total'], $k['festivales']['realizados'] . ' realizados'],
+    ['Público escolar e infantil', $k['escolar']['total'], $k['escolar']['realizados'] . ' realizados'],
+    ['Sedes', $t['ciudades'], $t['paises'] . ' territorios'],
+    ['Aforo estimado', $t['reuniones'], 'suma de los eventos con cifra'],
     ['Alianzas', $t['alianzas'], $t['contactos'] . ' listas de contactos'],
 ];
 ?>

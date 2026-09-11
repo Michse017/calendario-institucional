@@ -59,13 +59,16 @@ final class Dashboard
             }
             return ['total' => $t, 'realizados' => $r];
         };
+        // Indicadores por familia de actividad. Se agrupan por el valor normalizado
+        // del catálogo, de modo que siguen funcionando aunque alguien añada un tipo
+        // nuevo parecido ("Concierto didáctico" cuenta como concierto).
         $kpis = [
-            'ferias'      => $familia($porTipo, '/feria/'),
-            'workshops'   => $familia($porTipo, '/workshop|mision comercial/'),
-            'fam_trips'   => $familia($porTipo, '/fam trip/'),
-            'press_trips' => $familia($porTipo, '/press trip/'),
-            'ruedas'      => $familia($porTipo, '/rueda/'),
-            'mice'        => $familia($porSegmento, '/^mice$/'),
+            'conciertos'  => $familia($porTipo, '/concierto/'),
+            'exposiciones' => $familia($porTipo, '/exposicion/'),
+            'talleres'    => $familia($porTipo, '/taller/'),
+            'escenicas'   => $familia($porTipo, '/teatro|danza|funcion/'),
+            'festivales'  => $familia($porTipo, '/festival/'),
+            'escolar'     => $familia($porSegmento, '/comunidad educativa|infantil/'),
         ];
 
         $porMes = [];
