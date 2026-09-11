@@ -27,13 +27,23 @@ $debug = App\Core\Env::bool('APP_DEBUG', false);
 error_reporting(E_ALL);
 ini_set('display_errors', $debug ? '1' : '0');
 ini_set('log_errors', '1');
-ini_set('error_log', STORAGE_PATH . '/logs/php-errors.log');
+// Si el servidor ya dice a donde van los errores, se respeta. En un contenedor
+// apunta a la salida de error, que es de donde la plataforma recoge los
+// registros; escribir en un archivo interno los volveria invisibles justo
+// cuando mas falta hacen. Solo se elige archivo cuando no hay nada configurado.
+if (trim((string) ini_get('error_log')) === '') {
+    ini_set('error_log', STORAGE_PATH . '/logs/php-errors.log');
+}
 
 // Log propio en JSON por línea (storage/logs/app.log)
 $croLog = static function (string $nivel, string $msg, ?string $archivo = null, ?int $linea = null): void {
     $fila = ['t' => date('c'), 'nivel' => $nivel, 'msg' => $msg, 'archivo' => $archivo, 'linea' => $linea,
         'url' => ($_SERVER['REQUEST_METHOD'] ?? 'cli') . ' ' . ($_SERVER['REQUEST_URI'] ?? '')];
-    @file_put_contents(STORAGE_PATH . '/logs/app.log', json_encode($fila, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL, FILE_APPEND);
+    $json = json_encode($fila, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    @file_put_contents(STORAGE_PATH . '/logs/app.log', $json . PHP_EOL, FILE_APPEND);
+    // Lo grave va ademas al registro del servidor. El archivo de arriba vive
+    // dentro del contenedor y nadie lo lee; esto si llega a la plataforma.
+    error_log('[calendario] ' . $json);
 };
 
 set_exception_handler(static function (Throwable $e) use ($debug, $croLog): void {
