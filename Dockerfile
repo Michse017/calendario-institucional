@@ -24,6 +24,10 @@ RUN chown -R www-data:www-data storage \
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# La plataforma puede asignar otro puerto por la variable PORT; el entrypoint
+# reconfigura Apache en el arranque. 80 es solo el valor por defecto.
+ENV PORT=80
 EXPOSE 80
+
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["apache2-foreground"]

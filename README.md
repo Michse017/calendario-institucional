@@ -150,6 +150,12 @@ npm run build                 # compila public/assets/css/app.css
 npm run watch                 # recompila al guardar
 ```
 
+## Despliegue
+
+La demostración corre en un contenedor con esta misma imagen y una base MySQL
+gestionada. Las variables de entorno, el reinicio nocturno y las comprobaciones
+posteriores están en [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md).
+
 ## Licencia
 
 [MIT](LICENSE).
