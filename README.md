@@ -61,6 +61,10 @@ La pantalla de acceso lista tres cuentas y las rellena con un clic:
 Todas usan la contraseña `demo1234`. Entra con una de área y comprueba que el
 botón de editar desaparece en los eventos que no le pertenecen.
 
+Los datos se reinician solos cada madrugada, así que puedes crear, editar y
+borrar sin miedo. Un administrador también puede devolverlos a su estado inicial
+en el momento, desde el panel de administración.
+
 ## Cómo está construido
 
 PHP 8.3 sin framework, con un enrutador y una autocarga PSR-4 propios. La idea

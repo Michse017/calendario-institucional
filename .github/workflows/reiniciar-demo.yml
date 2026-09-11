@@ -1,0 +1,51 @@
+name: Reiniciar la demostración
+
+# La demo es pública y cualquiera puede crear, editar y borrar. Sin esto, en una
+# semana estaría llena de pruebas ajenas o vacía. Cada madrugada vuelve sola a su
+# estado inicial.
+#
+# Se programa aquí y no en el cron del hosting para no depender de la plataforma:
+# funcione donde funcione la demo, esto la reinicia igual.
+#
+# Necesita dos secretos del repositorio (Settings › Secrets and variables › Actions):
+#   DEMO_URL    la dirección de la demo, por ejemplo https://mi-demo.example.com
+#   DEMO_TOKEN  el mismo valor que DEMO_RESET_TOKEN del entorno de la demo
+
+on:
+  schedule:
+    # 07:00 UTC = 02:00 en Colombia. A esa hora no hay nadie mirando.
+    - cron: '0 7 * * *'
+  workflow_dispatch:        # y a mano desde la pestaña Actions cuando haga falta
+
+jobs:
+  reiniciar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar que los secretos están puestos
+        id: comprobar
+        env:
+          URL: ${{ secrets.DEMO_URL }}
+          TOKEN: ${{ secrets.DEMO_TOKEN }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$TOKEN" ]; then
+            echo "::notice::Faltan los secretos DEMO_URL o DEMO_TOKEN. No hay nada que reiniciar todavía."
+            echo "listo=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pedir el reinicio
+        if: steps.comprobar.outputs.listo == 'si'
+        env:
+          URL: ${{ secrets.DEMO_URL }}
+          TOKEN: ${{ secrets.DEMO_TOKEN }}
+        run: |
+          # --fail hace que un 4xx o 5xx marque el paso en rojo, para enterarse
+          # si la demo se cayó o el token dejó de valer.
+          respuesta=$(curl --fail --silent --show-error --max-time 120 \
+            -X POST \
+            -H "X-Demo-Token: ${TOKEN}" \
+            "${URL}/?r=demo/reiniciar")
+          echo "Respuesta: ${respuesta}"
+          echo "$respuesta" | grep -q '"ok":true' \
+            || { echo "::error::La demo respondió, pero no confirmó el reinicio."; exit 1; }

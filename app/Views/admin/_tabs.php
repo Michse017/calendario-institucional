@@ -9,3 +9,17 @@
     <?php endforeach; ?>
   </nav>
 </div>
+
+<?php if (App\Core\Env::bool('APP_DEMO')): ?>
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-borde bg-white px-4 py-3 dark:border-noche-borde dark:bg-noche-2">
+  <p class="text-xs leading-snug text-gris">
+    Esto es una demostración con datos ficticios. Se reinician solos cada noche;
+    aquí puedes devolverlos a su estado inicial ahora mismo.
+  </p>
+  <form method="post" action="<?= h(url('demo/reiniciar')) ?>"
+        data-confirmar="Se borrarán los eventos actuales y se volverán a sembrar los de ejemplo. ¿Seguir?">
+    <?= csrf_campo() ?>
+    <button class="btn-secundario text-xs">Reiniciar la demostración</button>
+  </form>
+</div>
+<?php endif; ?>

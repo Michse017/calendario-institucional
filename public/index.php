@@ -19,7 +19,7 @@ use App\Core\Seguridad;
 use App\Core\Sesion;
 
 /** Únicas rutas accesibles sin haber entrado. */
-const RUTAS_PUBLICAS = ['acceso', 'acceso/entrar'];
+const RUTAS_PUBLICAS = ['acceso', 'acceso/entrar', 'demo/reiniciar'];
 
 Sesion::iniciar();
 Seguridad::cabeceras();

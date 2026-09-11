@@ -7,6 +7,7 @@ use App\Controllers\AdminController;
 use App\Controllers\ApiController;
 use App\Controllers\AuthController;
 use App\Controllers\CalendarioController;
+use App\Controllers\DemoController;
 use App\Controllers\DashboardController;
 use App\Controllers\EventoController;
 
@@ -14,6 +15,9 @@ use App\Controllers\EventoController;
 $router->get('acceso', [AuthController::class, 'formulario']);
 $router->post('acceso/entrar', [AuthController::class, 'entrar']);
 $router->post('salir', [AuthController::class, 'salir']);
+// Reinicio de la demo: publica de ruta, pero DemoController exige token de tarea
+// programada o sesion de administrador con CSRF. Fuera del modo demo devuelve 404.
+$router->postConToken('demo/reiniciar', [DemoController::class, 'reiniciar']);
 
 $router->get('calendario', [CalendarioController::class, 'index']);
 $router->get('dashboard', [DashboardController::class, 'index']);
