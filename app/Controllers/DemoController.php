@@ -9,6 +9,8 @@ use App\Core\Csrf;
 use App\Core\Env;
 use App\Core\Request;
 use App\Core\Response;
+use App\Demo\Sembrador;
+use Throwable;
 
 /**
  * Reinicio de los datos de demostración.
@@ -43,13 +45,13 @@ final class DemoController extends Controller
             Csrf::exigir();
         }
 
-        $guion = dirname(__DIR__, 2) . '/bin/reiniciar_demo.php';
-        $comando = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($guion) . ' 2>&1';
-
-        exec($comando, $salida, $codigo);
-
-        if ($codigo !== 0) {
-            error_log('calendario: falló el reinicio de la demo: ' . implode(' | ', $salida));
+        // Se llama a la clase directamente en lugar de lanzar un proceso: exec()
+        // está desactivado en la mayoría de alojamientos compartidos, y depender
+        // de él dejaría la demo sin poder reiniciarse justo donde suele vivir.
+        try {
+            $r = Sembrador::sembrar(true, false);
+        } catch (Throwable $e) {
+            error_log('calendario: falló el reinicio de la demo: ' . $e->getMessage());
             if ($porToken) {
                 Response::json(['ok' => false, 'error' => 'El reinicio falló.'], 500);
             }
@@ -58,7 +60,11 @@ final class DemoController extends Controller
         }
 
         if ($porToken) {
-            Response::json(['ok' => true, 'mensaje' => 'Demostración reiniciada.']);
+            Response::json([
+                'ok' => true,
+                'mensaje' => 'Demostración reiniciada.',
+                'eventos' => $r['eventos'],
+            ]);
         }
 
         flash('ok', 'La demostración volvió a su estado inicial.');

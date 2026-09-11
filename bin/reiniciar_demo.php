@@ -5,33 +5,28 @@ declare(strict_types=1);
  * Devuelve la demostración a su estado inicial.
  *
  * La demo es pública y cualquiera puede crear, editar y borrar. Sin esto, en una
- * semana estaría llena de pruebas ajenas o vacía. Se ejecuta cada noche desde una
- * tarea programada, y también desde el botón del panel de administración.
- *
- * Es deliberadamente una envoltura muy fina sobre el sembrador: un solo camino
- * para generar los datos significa que la demo recién desplegada y la demo
- * recién reiniciada son exactamente iguales.
+ * semana estaría llena de pruebas ajenas o vacía. Lo llama la tarea programada
+ * nocturna; el botón del panel usa la misma clase directamente.
  *
  * Uso:
  *   php bin/reiniciar_demo.php                 vacía y vuelve a sembrar
  *   php bin/reiniciar_demo.php --con-usuarios  además recrea las cuentas de ejemplo
  */
 
+require dirname(__DIR__) . '/bootstrap.php';
+
+use App\Demo\Sembrador;
+
 $conUsuarios = in_array('--con-usuarios', $argv, true);
 
-$argumentos = [escapeshellarg(__DIR__ . '/sembrar_demo.php'), '--forzar'];
-if ($conUsuarios) {
-    $argumentos[] = '--con-usuarios';
-}
-
-$comando = escapeshellarg(PHP_BINARY) . ' ' . implode(' ', $argumentos);
-
 echo "Reiniciando la demostración...\n";
-passthru($comando, $codigo);
 
-if ($codigo !== 0) {
-    fwrite(STDERR, "El reinicio falló con código $codigo.\n");
-    exit($codigo);
+try {
+    $r = Sembrador::sembrar(true, $conUsuarios);
+} catch (Throwable $e) {
+    fwrite(STDERR, '  Falló: ' . $e->getMessage() . "\n");
+    exit(1);
 }
 
+echo "  {$r['eventos']} eventos y {$r['catalogos']} valores de catálogo.\n";
 echo "Demostración reiniciada.\n";

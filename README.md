@@ -99,7 +99,13 @@ El historial necesita que la fila siga existiendo para poder decir quién hizo q
 **El CSS propio vive en el fuente de Tailwind, no en el compilado.** Parece obvio,
 pero `npm run build` regenera el archivo entero: cualquier regla escrita a mano en
 el compilado desaparecería en la siguiente compilación. Hay un paso de integración
-continua que falla si los dos dejan de coincidir.
+continua (`bin/verificar_css.mjs`) que recompila y compara el conjunto de clases
+propias, así que si alguien escribe una regla en el sitio equivocado, salta.
+
+**El reinicio de la demo no lanza procesos.** Llama a la clase sembradora
+directamente en lugar de invocar PHP por consola, porque `exec()` está
+desactivado en la mayoría de alojamientos compartidos y eso dejaría la demo sin
+poder reiniciarse justo donde suele vivir.
 
 ## Seguridad
 
