@@ -18,6 +18,26 @@ function test_env_lee_claves_comillas_y_comentarios(): void
     assertEq('def', Env::get('NO_EXISTE', 'def'));
 }
 
+function test_env_prioriza_el_entorno_sobre_el_archivo(): void
+{
+    // Un contenedor no tiene .env: la plataforma inyecta la configuración como
+    // variables de entorno. Si solo se mirara el archivo, la aplicación desplegada
+    // caería a los valores por defecto sin avisar.
+    App\Core\Env::set('XPRUEBA_ENTORNO', 'valor-del-archivo');
+    assertEq('valor-del-archivo', App\Core\Env::get('XPRUEBA_ENTORNO'));
+
+    putenv('XPRUEBA_ENTORNO=valor-del-entorno');
+    assertEq('valor-del-entorno', App\Core\Env::get('XPRUEBA_ENTORNO'), 'el entorno manda sobre el archivo');
+
+    putenv('XPRUEBA_ENTORNO');   // se retira
+    assertEq('valor-del-archivo', App\Core\Env::get('XPRUEBA_ENTORNO'), 'sin variable vuelve el archivo');
+
+    // Una variable definida y vacía es un valor legítimo, no un «no hay».
+    putenv('XPRUEBA_VACIA=');
+    assertEq('', App\Core\Env::get('XPRUEBA_VACIA', 'por-defecto'), 'vacía no debe caer al valor por defecto');
+    putenv('XPRUEBA_VACIA');
+}
+
 function test_env_bool(): void
 {
     Env::set('F1', 'true');

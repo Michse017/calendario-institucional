@@ -35,7 +35,33 @@ final class Env
 
     public static function get(string $clave, ?string $default = null): ?string
     {
+        $delEntorno = self::delEntorno($clave);
+        if ($delEntorno !== null) {
+            return $delEntorno;
+        }
         return self::$valores[$clave] ?? $default;
+    }
+
+    /**
+     * Valor de una variable de entorno real, o null si no está definida.
+     *
+     * getenv() devuelve false cuando no existe, pero una variable definida y
+     * vacía es un valor legítimo (APP_BASE_PATH, por ejemplo), así que se
+     * distingue un caso del otro en vez de tratar ambos como «no hay».
+     */
+    private static function delEntorno(string $clave): ?string
+    {
+        $v = getenv($clave);
+        if ($v !== false) {
+            return $v;
+        }
+        if (array_key_exists($clave, $_ENV)) {
+            return (string) $_ENV[$clave];
+        }
+        if (array_key_exists($clave, $_SERVER)) {
+            return (string) $_SERVER[$clave];
+        }
+        return null;
     }
 
     public static function bool(string $clave, bool $default = false): bool

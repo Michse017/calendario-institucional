@@ -54,7 +54,11 @@ if (is_file(__DIR__ . '/_fixtures.php')) {
     require __DIR__ . '/_fixtures.php';
 }
 
-$filtro = $argv[1] ?? '';
+$exigirTodo = in_array('--sin-omitidos', $argv, true);
+$filtro = '';
+foreach (array_slice($argv, 1) as $a) {
+    if (!str_starts_with($a, '--')) { $filtro = $a; break; }
+}
 $ok = $fallos = $omitidos = 0;
 foreach (glob(__DIR__ . '/*Test.php') ?: [] as $archivo) {
     if ($filtro !== '' && stripos(basename($archivo), $filtro) === false) {
@@ -81,4 +85,15 @@ foreach (glob(__DIR__ . '/*Test.php') ?: [] as $archivo) {
     }
 }
 echo "\n$ok ok, $fallos fallos, $omitidos omitidos\n";
+// Con --sin-omitidos, omitir cuenta como fallo. Se usa en integracion continua:
+// sin base de datos las pruebas que la necesitan se omiten solas, y la bateria
+// entera se veria verde sin haber comprobado absolutamente nada.
+if ($exigirTodo && $omitidos > 0) {
+    echo "
+Se omitieron $omitidos pruebas y se exigio ejecutarlas todas.
+";
+    echo "Suele significar que la base de datos no esta disponible.
+";
+    exit(1);
+}
 exit($fallos > 0 ? 1 : 0);

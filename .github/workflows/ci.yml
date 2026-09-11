@@ -43,7 +43,10 @@ jobs:
         run: mysql -h 127.0.0.1 -u root -praiz < sql/001_schema.sql
 
       - name: Ejecutar la batería de pruebas
-        run: php tests/run.php
+        # --sin-omitidos hace que omitir cuente como fallo: sin base de datos las
+        # pruebas que la necesitan se saltan solas y todo se veria verde sin
+        # haber comprobado nada.
+        run: php tests/run.php --sin-omitidos
         env:
           APP_ENV: testing
           APP_DEBUG: 'true'
