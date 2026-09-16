@@ -70,6 +70,15 @@ final class Asistente
 
     private const MAX_PREGUNTA = 500;
 
+    /**
+     * Rondas de consulta por pregunta.
+     *
+     * Cada ronda es: el modelo pide un dato, se lo damos, y vuelve a decidir.
+     * Tres bastan para cruzar un par de cifras y comparar. El tope existe para
+     * que una pregunta rara no se convierta en un bucle que gasta cuota sin fin.
+     */
+    private const MAX_RONDAS = 3;
+
     public static function configurado(): bool
     {
         return (string) Env::get('GEMINI_API_KEY', '') !== '';
@@ -101,6 +110,9 @@ final class Asistente
         $cuerpo = [
             'systemInstruction' => ['parts' => [['text' => self::instrucciones($usuario)]]],
             'contents' => self::turnos($historial, $pregunta),
+            // El menú cerrado de consultas. El modelo elige y pasa argumentos;
+            // el SQL lo escribe AsistenteDatos, nunca él.
+            'tools' => AsistenteDatos::declaraciones(),
             'generationConfig' => [
                 'temperature' => 0.3,        // es ayuda, no creatividad: que no invente
                 'maxOutputTokens' => 700,
@@ -118,9 +130,62 @@ final class Asistente
             ),
         ];
 
-        $respuesta = self::llamar($cuerpo);
-        self::anotarUso($ip);
-        return $respuesta;
+        // Bucle de consulta: mientras el modelo pida datos, se los damos y vuelve
+        // a decidir. Sale en cuanto contesta con texto.
+        for ($ronda = 0; $ronda <= self::MAX_RONDAS; $ronda++) {
+            $candidato = self::llamar($cuerpo);
+            $llamadas = self::llamadasDe($candidato);
+
+            if (!$llamadas || $ronda === self::MAX_RONDAS) {
+                $texto = self::textoDe($candidato, $llamadas !== []);
+                self::anotarUso($ip);
+                return $texto;
+            }
+
+            // El turno del modelo se devuelve tal cual: si se recorta o se
+            // reescribe, pierde el hilo de qué había pedido.
+            $cuerpo['contents'][] = self::conObjetos($candidato['content']);
+            $respuestas = [];
+            foreach ($llamadas as $l) {
+                $datos = AsistenteDatos::ejecutar($l['name'], (array) ($l['args'] ?? []));
+                $respuestas[] = ['functionResponse' => ['name' => $l['name'], 'response' => (object) $datos]];
+            }
+            $cuerpo['contents'][] = ['role' => 'user', 'parts' => $respuestas];
+        }
+
+        // Inalcanzable: el bucle siempre sale por el return de arriba.
+        throw new RuntimeException('El asistente no está disponible ahora mismo.');
+    }
+
+    /**
+     * Arregla los objetos vacíos antes de devolver el turno del modelo.
+     *
+     * PHP no distingue entre `{}` y `[]` al decodificar: una consulta sin
+     * argumentos vuelve como array vacío y se vuelve a codificar como `[]`, que
+     * la API rechaza con un 400 ("Proto field is not repeating"). Pasa solo
+     * cuando el modelo llama a una herramienta sin filtros, que es justamente el
+     * caso más común: "¿cuántos eventos hay?".
+     */
+    private static function conObjetos(array $contenido): array
+    {
+        foreach ($contenido['parts'] ?? [] as $i => $parte) {
+            if (isset($parte['functionCall'])) {
+                $contenido['parts'][$i]['functionCall']['args'] = (object) ($parte['functionCall']['args'] ?? []);
+            }
+        }
+        return $contenido;
+    }
+
+    /** Las consultas que pidió el modelo en este turno. */
+    private static function llamadasDe(array $candidato): array
+    {
+        $fuera = [];
+        foreach ($candidato['content']['parts'] ?? [] as $p) {
+            if (isset($p['functionCall']['name'])) {
+                $fuera[] = $p['functionCall'];
+            }
+        }
+        return $fuera;
     }
 
     // ------------------------------------------------------------ Contexto
@@ -156,7 +221,20 @@ final class Asistente
 
         QUÉ PUEDES HACER
         Explicar cómo se usa la aplicación, qué significa cada campo, cómo funcionan los
-        permisos, y responder preguntas sobre los datos que tienes abajo.
+        permisos, y responder preguntas sobre los datos.
+
+        CONSULTAR DATOS
+        Tienes herramientas para preguntarle a la base de datos: contar_eventos para
+        cifras y porcentajes, resumen_por para desgloses y comparaciones, y
+        buscar_eventos para saber cuáles son. Úsalas SIEMPRE que la pregunta pida un
+        número, un porcentaje, un ranking o una lista: los datos de abajo son solo
+        el panorama general, no sirven para responder por área, tipo o mes.
+        Reglas al usarlas:
+        - Los porcentajes ya vienen calculados. Cópialos, NO los recalcules.
+        - Si vuelve "filtros_ignorados_por_no_existir", dilo claramente: ese valor no
+          existe en el catálogo, así que el número NO está filtrado por él.
+        - Si un dato viene vacío o nulo, di que no está reportado. No lo trates como cero.
+        - Con una consulta suele bastar. No encadenes varias por gusto.
 
         LÍMITES, y son estrictos:
         - Hablas ÚNICAMENTE del calendario y de sus eventos. Cualquier otro tema, por
@@ -305,14 +383,12 @@ final class Asistente
      * respuestas legítimas y probar en otro sitio sería justo lo contrario de lo
      * que se quiere.
      */
-    private static function llamar(array $cuerpo): string
+    private static function llamar(array $cuerpo): array
     {
-        $ultimo = null;
-        foreach (self::MODELOS as $i => $modelo) {
+        foreach (self::MODELOS as $modelo) {
             try {
                 return self::pedirA($modelo, $cuerpo);
             } catch (ProveedorCaido $e) {
-                $ultimo = $e;
                 error_log("asistente: $modelo no responde ({$e->getMessage()}), probando el siguiente");
             }
         }
@@ -320,17 +396,23 @@ final class Asistente
         throw new RuntimeException('El asistente no está disponible ahora mismo.');
     }
 
-    /** @throws ProveedorCaido cuando merece la pena probar con otro modelo */
-    private static function pedirA(string $modelo, array $cuerpo): string
+    /**
+     * Una petición a un modelo concreto. Devuelve el candidato en crudo, no el
+     * texto: puede traer una consulta pedida en vez de una respuesta, y quien
+     * decide qué hacer con eso es el bucle de responder().
+     *
+     * @throws ProveedorCaido cuando merece la pena probar con otro modelo
+     */
+    private static function pedirA(string $modelo, array $cuerpo): array
     {
         $ch = curl_init(self::API . $modelo . ':generateContent');
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            // Corto a propósito: hay hasta tres modelos que probar, y quien
-            // escribe en un chat no espera minuto y medio. Una respuesta normal
-            // tarda dos o tres segundos; si pasa de doce, ese modelo no está.
-            CURLOPT_TIMEOUT => 12,
+            // Medido: sin consultar datos responde en 1-2 segundos; consultando,
+            // entre 7 y 13, porque hay que ir y volver. Veinte deja margen para
+            // eso sin que la cadena entera se eternice cuando un modelo no está.
+            CURLOPT_TIMEOUT => 20,
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
@@ -373,21 +455,38 @@ final class Asistente
         if (!$c || in_array($c['finishReason'] ?? '', ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST'], true)) {
             throw new RuntimeException('No puedo responder a eso. Pregúntame sobre el calendario.');
         }
+        return $c;
+    }
+
+    /**
+     * El texto de la respuesta.
+     *
+     * @param bool $pidiendoDatos true si el modelo seguía pidiendo consultas al
+     *                            agotarse las rondas; entonces el vacío no es un
+     *                            rechazo, es que se quedó dando vueltas.
+     */
+    private static function textoDe(array $candidato, bool $pidiendoDatos): string
+    {
         $texto = '';
-        foreach ($c['content']['parts'] ?? [] as $p) {
+        foreach ($candidato['content']['parts'] ?? [] as $p) {
             $texto .= (string) ($p['text'] ?? '');
         }
         $texto = trim($texto);
-        if ($texto === '') {
-            // Vacío por quedarse sin presupuesto no es lo mismo que un rechazo:
-            // decir "no puedo responder a eso" sería mentirle a quien preguntó.
-            if (($c['finishReason'] ?? '') === 'MAX_TOKENS') {
-                error_log('asistente: respuesta cortada por maxOutputTokens');
-                throw new RuntimeException('La respuesta salió demasiado larga. Pregúntame algo más concreto.');
-            }
-            throw new RuntimeException('No puedo responder a eso. Pregúntame sobre el calendario.');
+        if ($texto !== '') {
+            return $texto;
         }
-        return $texto;
+        // Un vacío tiene tres causas distintas y merecen tres mensajes distintos:
+        // decir "no puedo responder a eso" cuando la respuesta se cortó sería
+        // mentirle a quien preguntó.
+        if (($candidato['finishReason'] ?? '') === 'MAX_TOKENS') {
+            error_log('asistente: respuesta cortada por maxOutputTokens');
+            throw new RuntimeException('La respuesta salió demasiado larga. Pregúntame algo más concreto.');
+        }
+        if ($pidiendoDatos) {
+            error_log('asistente: agotó las rondas de consulta sin llegar a una respuesta');
+            throw new RuntimeException('Esa pregunta necesita demasiadas consultas. Pregúntame algo más concreto.');
+        }
+        throw new RuntimeException('No puedo responder a eso. Pregúntame sobre el calendario.');
     }
 }
 
