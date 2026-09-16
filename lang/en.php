@@ -534,4 +534,49 @@ return [
     'Escribe una procedencia y elígela…'
         => 'Type an origin and pick it…',
 
+
+    // Admin › Usuarios: informe para imprimir
+    'Quien aparece en esta lista puede entrar al calendario. El informe abre una hoja lista para imprimir o guardar como PDF, con los datos de este momento.'
+        => 'Everyone on this list can sign in to the calendar. The report opens a page ready to print or save as PDF, with the data as of right now.',
+    'Informe para imprimir'
+        => 'Printable report',
+    'Imprimir o guardar como PDF'
+        => 'Print or save as PDF',
+    'Volver a Usuarios'
+        => 'Back to Users',
+    'En el diálogo de impresión elige «Guardar como PDF».'
+        => 'In the print dialog choose "Save as PDF".',
+    'Calendario institucional'
+        => 'Institutional calendar',
+    'Usuarios de la plataforma'
+        => 'Platform users',
+    'Datos tomados el :fecha'
+        => 'Data as of :fecha',
+    'Activos'
+        => 'Active',
+    'Inactivos'
+        => 'Inactive',
+    'Administradores'
+        => 'Administrators',
+    'Áreas con acceso'
+        => 'Departments with access',
+    'Reparto por área'
+        => 'Breakdown by department',
+    'Eventos :anio'
+        => ':anio events',
+    'Eventos por usuario'
+        => 'Events per user',
+    'Sin área (administradores)'
+        => 'No department (administrators)',
+    'Los administradores no tienen área asignada porque ven y editan todas. El conteo de eventos corresponde al calendario :anio y no incluye los eventos eliminados.'
+        => 'Administrators have no department because they see and edit all of them. The event count is for the :anio calendar and excludes deleted events.',
+    'Listado completo'
+        => 'Full list',
+    'baja'
+        => 'inactive',
+    'El ID es el identificador interno del usuario. Quien aparece marcado como «baja» conserva su ficha pero no puede entrar.'
+        => 'The ID is the user\'s internal identifier. Anyone marked "inactive" keeps their record but cannot sign in.',
+    'Generado desde Administración › Usuarios. No se incluyen correos ni datos personales.'
+        => 'Generated from Administration › Users. No emails or personal data are included.',
+
 ];

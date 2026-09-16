@@ -9,10 +9,12 @@ use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\Request;
 use App\Core\Response;
+use App\Core\View;
 use App\Models\Catalogo;
 use App\Models\Evento;
 use App\Models\Historial;
 use App\Models\Usuario;
+use DateTimeImmutable;
 use Throwable;
 
 final class AdminController extends Controller
@@ -29,6 +31,26 @@ final class AdminController extends Controller
             'titulo' => 'Usuarios', 'usuarios' => Usuario::listar(),
             'areasCatalogo' => $areasCatalogo, 'tab' => 'usuarios',
         ]);
+    }
+
+    /**
+     * Informe de usuarios listo para imprimir o guardar como PDF.
+     *
+     * Se sirve SIN la plantilla normal (View::render con layout null): lo que
+     * se ve en pantalla ya es la hoja. El PDF lo hace el navegador y no el
+     * servidor, a propósito: sale con texto seleccionable y evita meter una
+     * librería de PDF en el proyecto.
+     */
+    public function informe(Request $req): void
+    {
+        $anio = (int) date('Y');
+        View::render('admin/informe_usuarios', [
+            'usuarios'     => Usuario::listar(),
+            'areasEventos' => Evento::conteos(['anio' => $anio])['areas'],
+            'coloresArea'  => array_column(array_map(static fn(array $a): array => ['id' => (int) $a['id'], 'color' => $a['color'] ?: Campos::COLOR_NEUTRO], Catalogo::areas()), 'color', 'id'),
+            'anio'         => $anio,
+            'generado'     => new DateTimeImmutable(),
+        ], null);
     }
 
     public function usuariosGuardar(Request $req): void

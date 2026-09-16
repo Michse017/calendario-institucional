@@ -10,6 +10,11 @@ $yo = usuario_actual()['id'];
 ?>
 <?php include APP_PATH . '/Views/admin/_tabs.php'; ?>
 
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <p class="text-xs text-gris"><?= h(t('Quien aparece en esta lista puede entrar al calendario. El informe abre una hoja lista para imprimir o guardar como PDF, con los datos de este momento.')) ?></p>
+  <a href="<?= h(url('admin/informe')) ?>" target="_blank" rel="noopener" class="btn-secundario text-xs"><?= h(t('Informe para imprimir')) ?></a>
+</div>
+
 <div class="card overflow-x-auto">
   <table class="tabla">
     <thead>

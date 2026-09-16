@@ -43,6 +43,7 @@ $router->post('eventos/reanudar', [EventoController::class, 'reanudar']);
 $router->post('eventos/estado', [EventoController::class, 'estado']);
 $router->get('admin/usuarios', [AdminController::class, 'usuarios']);
 $router->post('admin/usuarios', [AdminController::class, 'usuariosGuardar']);
+$router->get('admin/informe', [AdminController::class, 'informe']);
 $router->get('admin/catalogos', [AdminController::class, 'catalogos']);
 $router->post('admin/catalogos', [AdminController::class, 'catalogosGuardar']);
 $router->get('admin/historial', [AdminController::class, 'historial']);
