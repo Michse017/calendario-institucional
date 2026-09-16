@@ -34,6 +34,8 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
         'detalle'   => $colOtro !== '' ? (string) ($valores[$colOtro] ?? '') : '',
         'errorOtro' => $colOtro !== '' ? ($errores[$colOtro] ?? null) : null,
         'opciones'  => $opciones[$campo] ?? [],
+        // Múltiples (mercado): lo elegido, principal primero; si no hay lista, el valor simple que hubiera.
+        'elegidos'  => in_array($campo, Campos::MULTIPLES, true) ? (array) ($valores['mercados'] ?? array_values(array_filter([(string) ($valores[$campo] ?? '')]))) : [],
     ]);
 };
 ?>

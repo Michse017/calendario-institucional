@@ -18,6 +18,9 @@ final class Evento
     private const SELECT = 'SELECT e.*,
             ta.valor AS tipo_accion, se.valor AS segmento, ar.valor AS area, ar.color AS area_color,
             li.valor AS linea_estrategica, pa.valor AS pais, ci.valor AS ciudad, me.valor AS mercado, org.valor AS organizador,
+            (SELECT GROUP_CONCAT(c2.valor ORDER BY (c2.id = e.mercado_id) DESC, c2.valor SEPARATOR \' | \')
+               FROM evento_mercados em2 JOIN catalogo_valores c2 ON c2.id = em2.mercado_id
+              WHERE em2.evento_id = e.id AND em2.activo = 1) AS mercados,
             COALESCE(ac.nombre, CONCAT(\'Usuario #\', e.creado_por)) AS creado_por_nombre
         FROM eventos e
         JOIN catalogo_valores ta  ON ta.id  = e.tipo_accion_id
@@ -56,6 +59,7 @@ final class Evento
             $pdo->prepare('INSERT INTO eventos (' . implode(', ', $cols) . ') VALUES (' . implode(', ', array_fill(0, count($cols), '?')) . ')')
                 ->execute($vals);
             $id = (int) $pdo->lastInsertId();
+            self::guardarMercados($pdo, $id, (int) $ids['mercado_id'], (array) ($datos['mercados_extra'] ?? []));
             Historial::registrar($id, $usuarioId, 'crear', ['despues' => self::resumen((array) self::porId($id))]);
             return $id;
         });
@@ -86,6 +90,7 @@ final class Evento
             $vals[] = $usuarioId;
             $vals[] = $id;
             $pdo->prepare('UPDATE eventos SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals);
+            self::guardarMercados($pdo, $id, (int) $ids['mercado_id'], (array) ($datos['mercados_extra'] ?? []));
             $cambios = self::diferencias($antes, (array) self::porId($id));
             if ($cambios) {
                 Historial::registrar($id, $usuarioId, 'editar', $cambios);
@@ -224,6 +229,53 @@ final class Evento
         $st->execute([$id]);
         $f = $st->fetch();
         return $f ?: null;
+    }
+
+    /** Los mercados de un evento, el principal primero. Para pintar el formulario. */
+    public static function mercadosDe(int $eventoId): array
+    {
+        $st = Database::pdo()->prepare(
+            'SELECT c.valor FROM evento_mercados em
+               JOIN catalogo_valores c ON c.id = em.mercado_id
+               JOIN eventos e         ON e.id = em.evento_id
+              WHERE em.evento_id = ? AND em.activo = 1
+              ORDER BY (em.mercado_id = e.mercado_id) DESC, c.valor'
+        );
+        $st->execute([$eventoId]);
+        return array_map(static fn(array $f): string => (string) $f['valor'], $st->fetchAll());
+    }
+
+    /**
+     * Deja en evento_mercados exactamente los mercados del evento.
+     *
+     * El principal SIGUE viviendo en eventos.mercado_id a propósito: el SELECT
+     * del modelo lo usa con un JOIN interno del que comen todas las pantallas.
+     * Esta tabla solo añade. Y aquí NO se borra ninguna fila: se dan de baja y
+     * se vuelven a dar de alta, porque el usuario de base de datos de una
+     * instalación puede no tener DELETE (en esta aplicación nada se borra de
+     * verdad).
+     */
+    private static function guardarMercados(PDO $pdo, int $eventoId, int $principalId, array $nombresExtra): void
+    {
+        $ids = [$principalId];
+        $buscar = $pdo->prepare('SELECT id FROM catalogo_valores WHERE campo = ? AND valor_norm = ? AND activo = 1 LIMIT 1');
+        foreach ($nombresExtra as $nombre) {
+            $nombre = Normalizador::limpiar((string) $nombre);
+            if ($nombre === '') {
+                continue;
+            }
+            $buscar->execute(['mercado', Normalizador::normalizar($nombre)]);
+            $id = (int) $buscar->fetchColumn();
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+        $pdo->prepare('UPDATE evento_mercados SET activo = 0 WHERE evento_id = ?')->execute([$eventoId]);
+        $ins = $pdo->prepare('INSERT INTO evento_mercados (evento_id, mercado_id, activo) VALUES (?, ?, 1)
+                              ON DUPLICATE KEY UPDATE activo = 1');
+        foreach (array_unique($ids) as $id) {
+            $ins->execute([$eventoId, $id]);
+        }
     }
 
     /** Eventos que tocan el rango [inicio, fin] (Y-m-d, inclusive). */

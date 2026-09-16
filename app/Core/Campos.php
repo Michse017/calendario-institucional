@@ -37,6 +37,13 @@ final class Campos
     public const BUSCABLES = ['mercado'];
 
     /**
+     * Listas cerradas donde se pueden elegir VARIOS valores (procedencia del público): el primero es el
+     * principal y viaja en la columna de siempre (eventos.mercado_id); todos, principal incluido, quedan
+     * en evento_mercados.
+     */
+    public const MULTIPLES = ['mercado'];
+
+    /**
      * Listas cerradas cuyos valores son textos muy largos (la línea estratégica pasa de 170 caracteres):
      * el campo enseña solo el código y un resumen, y el panel de abajo muestra cada opción completa.
      */

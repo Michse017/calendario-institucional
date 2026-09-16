@@ -189,6 +189,58 @@ document.addEventListener('alpine:init', () => {
 
   // Lista cerrada de textos largos (línea estratégica): panel con las opciones completas y, ya elegida,
   // el campo muestra código + resumen y debajo queda el texto entero a la vista.
+  // Lista cerrada donde se pueden elegir VARIOS valores (procedencia del público):
+  // se escribe para buscar y cada opción elegida queda como una etiqueta que se
+  // quita con la X. El primero es el "principal" (viaja en name="mercado"); los
+  // demás en mercados_extra[].
+  Alpine.data('listaMultiple', (cfg) => ({
+    opciones: cfg.opciones || [],
+    elegidos: Array.isArray(cfg.elegidos) ? cfg.elegidos.slice() : [],
+    q: '',
+    items: [],
+    abierto: false,
+    activo: -1,
+    filtrar() {
+      const q = CRO.norm(this.q);
+      let r = this.opciones.filter((o) => !this.elegidos.some((s) => CRO.norm(s) === CRO.norm(o)));
+      if (q !== '') {
+        const empieza = [], contiene = [];
+        for (const o of r) {
+          const n = CRO.norm(o);
+          if (n.startsWith(q)) empieza.push(o);
+          else if (n.includes(q)) contiene.push(o);
+        }
+        r = empieza.concat(contiene);
+      }
+      this.items = r.slice(0, 60);
+      this.activo = this.items.length ? 0 : -1;
+      this.abierto = true;
+    },
+    agregar(v) {
+      if (v && !this.elegidos.some((s) => CRO.norm(s) === CRO.norm(v))) { this.elegidos.push(v); }
+      this.q = ''; this.items = []; this.abierto = false;
+      // Devolver el foco al buscador para poder encadenar varios valores sin volver a hacer clic.
+      this.$nextTick(() => this.$refs.buscar && this.$refs.buscar.focus());
+    },
+    quitar(v) { this.elegidos = this.elegidos.filter((s) => s !== v); },
+    cerrar() { this.q = ''; this.abierto = false; },
+    tecla(e) {
+      if (e.key === 'Escape') { this.abierto = false; return; }
+      // Al borrar con el campo vacío, se quita la última etiqueta (cómodo y esperado).
+      if (e.key === 'Backspace' && this.q === '' && this.elegidos.length) { this.elegidos.pop(); return; }
+      // Enter mientras se busca: elige la sugerencia y SE QUEDA en el campo. Se frena
+      // la propagación para que ningún manejador del formulario lo tome como "enviar".
+      if (e.key === 'Enter' && (this.abierto || this.q !== '')) {
+        e.preventDefault(); e.stopPropagation();
+        if (this.activo >= 0 && this.items[this.activo]) { this.agregar(this.items[this.activo]); }
+        return;
+      }
+      if (!this.abierto) { return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); this.activo = Math.min(this.activo + 1, this.items.length - 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); this.activo = Math.max(this.activo - 1, 0); }
+    },
+  }));
+
   Alpine.data('listaExpandible', (cfg) => ({
     opciones: cfg.opciones || [],
     valor: cfg.valor || '',

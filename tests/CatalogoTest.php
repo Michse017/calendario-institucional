@@ -152,3 +152,12 @@ function test_catalogo_na_es_intocable(): void
         assertLanza(fn() => Catalogo::unir($otroId, $id), 'unir N/A como destino debe lanzar');
     });
 }
+
+function test_catalogo_errores_cerrados_revisa_los_mercados_extra(): void
+{
+    conDb(function (PDO $pdo): void {
+        assertEq([], Catalogo::erroresCerrados(['mercado' => 'Regional', 'mercados_extra' => ['Nacional']]));
+        $mal = Catalogo::erroresCerrados(['mercado' => 'Regional', 'mercados_extra' => ['Narnia']]);
+        assertTrue(isset($mal['mercado']), 'un mercado extra inexistente se rechaza');
+    });
+}

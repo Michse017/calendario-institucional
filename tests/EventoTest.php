@@ -188,3 +188,20 @@ function test_evento_mismo_nombre_avisa_sin_impedir_y_excluye_el_propio(): void
         assertEq([$a], $ids(Evento::mismoNombre('Xcomité mensual')), 'los eliminados no cuentan');
     });
 }
+
+function test_evento_varios_mercados_principal_primero_y_baja_logica(): void
+{
+    conDb(function (PDO $pdo): void {
+        $id = Evento::crear(datosEvento(['mercado' => 'Regional', 'mercados_extra' => ['Internacional', 'Nacional', 'Regional', 'Xinventado']]), 7);
+        $ev = Evento::porId($id);
+        assertEq('Regional', $ev['mercado'], 'el principal sigue en eventos.mercado_id');
+        assertEq('Regional | Internacional | Nacional', $ev['mercados'], 'principal primero, el resto por nombre; el inexistente se ignora');
+        assertEq(['Regional', 'Internacional', 'Nacional'], Evento::mercadosDe($id));
+        Evento::actualizar($id, datosEvento(['mercado' => 'Regional', 'mercados_extra' => ['Barrio']]), 7);
+        assertEq('Regional | Barrio', Evento::porId($id)['mercados']);
+        $st = $pdo->prepare('SELECT SUM(activo = 1) a, SUM(activo = 0) i FROM evento_mercados WHERE evento_id = ?');
+        $st->execute([$id]);
+        $f = $st->fetch();
+        assertEq([2, 2], [(int) $f['a'], (int) $f['i']], 'nada se borra: los que salen quedan en baja lógica');
+    });
+}

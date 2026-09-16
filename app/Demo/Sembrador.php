@@ -311,7 +311,13 @@ final class Sembrador
                     'linea_estrategica' => self::CATALOGOS['linea_estrategica'][array_rand(self::CATALOGOS['linea_estrategica'])],
                     'pais'              => 'Andalia',
                     'ciudad'            => self::CATALOGOS['ciudad'][array_rand(self::CATALOGOS['ciudad'])],
-                    'mercado'           => self::CATALOGOS['mercado'][array_rand(self::CATALOGOS['mercado'])],
+                    'mercado'           => $procedencia = self::CATALOGOS['mercado'][array_rand(self::CATALOGOS['mercado'])],
+                    // Uno de cada tres eventos llega a más de una procedencia: la siguiente de la
+                    // lista, en ciclo. Se decide con $i y no con mt_rand para no mover la secuencia
+                    // aleatoria del resto de la semilla.
+                    'mercados_extra'    => $i % 3 === 0
+                        ? [self::CATALOGOS['mercado'][(array_search($procedencia, self::CATALOGOS['mercado'], true) + 1) % count(self::CATALOGOS['mercado'])]]
+                        : [],
                     'organizador'       => self::CATALOGOS['organizador'][array_rand(self::CATALOGOS['organizador'])],
                     'objetivo'          => $objetivo,
                     'resultados'        => $estado === 'realizado'

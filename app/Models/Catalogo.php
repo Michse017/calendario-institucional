@@ -219,6 +219,17 @@ final class Catalogo
                 $e[$campo] = 'Elige una opción de la lista: «' . $valor . '» no está disponible.';
             }
         }
+        // Los mercados adicionales pasan por la misma barrera que el principal.
+        foreach ((array) ($datos['mercados_extra'] ?? []) as $v) {
+            $v = (string) $v;
+            if ($v === '') {
+                continue;
+            }
+            $fila = self::buscarPorNorm('mercado', Normalizador::normalizar($v));
+            if (!$fila || (int) $fila['activo'] !== 1) {
+                $e['mercado'] = 'Elige opciones de la lista: «' . $v . '» no está disponible.';
+            }
+        }
         return $e;
     }
 

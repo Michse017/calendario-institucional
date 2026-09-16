@@ -141,3 +141,25 @@ CREATE TABLE IF NOT EXISTS `eventos_historial` (
   KEY `idx_evento` (`evento_id`),
   KEY `idx_fecha` (`fecha`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Procedencias del público (varias por evento)
+--
+-- `eventos.mercado_id` sigue guardando la principal (todas las consultas hacen
+-- JOIN con ella); esta tabla añade las demás. `activo` es baja lógica: aquí no
+-- se borra, se desactiva, igual que en el resto del esquema.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `evento_mercados` (
+  `evento_id`  INT NOT NULL,
+  `mercado_id` INT NOT NULL,
+  `activo`     TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`evento_id`, `mercado_id`),
+  KEY `idx_em_mercado` (`mercado_id`),
+  CONSTRAINT `fk_em_evento`  FOREIGN KEY (`evento_id`)  REFERENCES `eventos` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_em_mercado` FOREIGN KEY (`mercado_id`) REFERENCES `catalogo_valores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Relleno idempotente: los eventos que ya existían quedan con su principal en la
+-- tabla nueva (INSERT IGNORE: no toca lo que ya esté).
+INSERT IGNORE INTO `evento_mercados` (`evento_id`, `mercado_id`, `activo`)
+SELECT `id`, `mercado_id`, 1 FROM `eventos`;

@@ -527,4 +527,11 @@ return [
     'Número, N/A o en qué va'
         => 'A number, N/A or its status',
 
+
+    // Procedencia del público: varios valores
+    'Añadir otro…'
+        => 'Add another…',
+    'Escribe una procedencia y elígela…'
+        => 'Type an origin and pick it…',
+
 ];

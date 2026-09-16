@@ -116,3 +116,13 @@ function test_validator_cancelado_solo_si_se_permite(): void
     assertEq(true, $r['ok']);
     assertEq('cancelado', $r['datos']['estado']);
 }
+
+function test_validator_mercados_extra_sin_repetidos_ni_principal(): void
+{
+    $r = Validator::evento(payloadValido(['mercado' => 'Regional', 'mercados_extra' => [' Nacional ', 'Regional', 'Nacional', '', 'Internacional']]));
+    assertEq('Regional', $r['datos']['mercado']);
+    assertEq(['Nacional', 'Internacional'], $r['datos']['mercados_extra'], 'sin el principal, sin repetidos, sin vacíos');
+    assertEq(['Regional', 'Nacional', 'Internacional'], Validator::mercadosDelEnvio(['mercado' => 'Regional', 'mercados_extra' => ['Nacional', 'Internacional', 'Regional']]));
+    $r = Validator::evento(payloadValido(['mercado' => 'Regional']));
+    assertEq([], $r['datos']['mercados_extra'], 'sin extras es una lista vacía, no falta la clave');
+}

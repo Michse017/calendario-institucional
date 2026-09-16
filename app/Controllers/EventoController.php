@@ -40,6 +40,8 @@ final class EventoController extends Controller
     public function editar(Request $req): void
     {
         $ev = $this->cargar($req->int('id'));
+        // Eventos anteriores a evento_mercados (o de una base sin rellenar) muestran al menos su principal.
+        $ev['mercados'] = Evento::mercadosDe((int) $ev['id']) ?: [(string) $ev['mercado']];
         $this->formulario('editar', $ev);
     }
 
@@ -187,6 +189,8 @@ final class EventoController extends Controller
         $sug = $r['ok'] ? Catalogo::parecidosPendientes($r['datos'], (array) ($in['confirmar'] ?? [])) : [];
         if (!$r['ok'] || $sug) {
             $valores = $evento === null ? $in : $in + ['id' => $evento['id'], 'cancelacion_motivo' => $evento['cancelacion_motivo']];
+            // Lo que ya había elegido, para que el formulario no se lo borre al repintar.
+            $valores['mercados'] = Validator::mercadosDelEnvio($in);
             $this->formulario($modo, $valores, $r['errores'], $sug);
             return;
         }

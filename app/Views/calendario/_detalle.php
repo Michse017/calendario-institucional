@@ -32,7 +32,7 @@ $enlace = static function (string $v): string {
     <?php foreach (['tipo_accion', 'segmento', 'mercado', 'organizador', 'linea_estrategica'] as $c): ?>
     <div class="<?= $c === 'linea_estrategica' ? 'col-span-2' : '' ?>">
       <dt class="label mb-0.5"><?= h(t(Campos::ETIQUETA[$c])) ?></dt>
-      <dd class="font-medium"><?= h(t(catalogo_mostrar($ev, $c))) ?></dd>
+      <dd class="font-medium"><?= h($c === 'mercado' && !empty($ev['mercados']) ? implode(', ', array_map('t', explode(' | ', (string) $ev['mercados']))) : t(catalogo_mostrar($ev, $c))) ?></dd>
     </div>
     <?php endforeach; ?>
   </dl>

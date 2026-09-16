@@ -158,7 +158,33 @@ final class Validator
             $d['reuniones'] = $r;
         }
 
+        // Mercados adicionales (las etiquetas del formulario): todos menos el principal, sin repetidos, máximo 20.
+        $d['mercados_extra'] = array_slice(array_values(array_diff(
+            self::mercadosDelEnvio($in), [(string) ($d['mercado'] ?? '')]
+        )), 0, 20);
+
         return ['ok' => $e === [], 'errores' => $e, 'datos' => $d];
+    }
+
+    /**
+     * Todos los mercados que vienen en el envío, el principal primero y sin
+     * repetidos. Lo usan el validador y el controlador (para repintar el
+     * formulario sin perder lo que la persona había elegido).
+     */
+    public static function mercadosDelEnvio(array $in): array
+    {
+        $lista = [];
+        $principal = Normalizador::limpiar((string) ($in['mercado'] ?? ''));
+        if ($principal !== '') {
+            $lista[] = $principal;
+        }
+        foreach ((array) ($in['mercados_extra'] ?? []) as $v) {
+            $v = Normalizador::limpiar((string) $v);
+            if ($v !== '') {
+                $lista[] = $v;
+            }
+        }
+        return array_values(array_unique($lista));
     }
 
     public static function esPendiente(string $v): bool
