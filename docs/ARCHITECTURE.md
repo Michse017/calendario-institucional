@@ -266,6 +266,8 @@ erDiagram
     CATALOGO_VALORES ||--o{ EVENTOS : "eight different columns"
     USUARIOS ||--o{ EVENTOS_HISTORIAL : "who did it"
     EVENTOS ||--o{ EVENTOS_HISTORIAL : "on which event"
+    EVENTOS ||--o{ EVENTO_MERCADOS : "audience origins"
+    CATALOGO_VALORES ||--o{ EVENTO_MERCADOS : "which origin"
 
     CATALOGO_VALORES {
         int id PK
@@ -307,6 +309,11 @@ erDiagram
         json cambios "only the fields that changed"
         datetime fecha
     }
+    EVENTO_MERCADOS {
+        int evento_id PK
+        int mercado_id PK
+        bool activo "soft delete"
+    }
 ```
 
 Why it looks like this:
@@ -321,6 +328,12 @@ Why it looks like this:
 - **`eventos_historial` has no foreign key, on purpose.** The record of who did
   what must outlive the event itself. A foreign key with cascading delete would
   wipe out exactly the evidence worth keeping.
+- **`evento_mercados` adds, it does not replace.** An event can reach several
+  audience origins, but `eventos.mercado_id` still holds the main one. Every
+  query keeps its inner join and its shape; the extra origins are a
+  correlated subquery. Rows are never deleted here either: an origin that is
+  removed from an event is flagged inactive, so an installation whose
+  database user has no DELETE grant works exactly the same.
 - **`cambios` is a JSON column.** It stores only the fields that changed. It is
   the reason MySQL 8 or MariaDB 10.5 upwards is required.
 

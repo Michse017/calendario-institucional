@@ -44,6 +44,21 @@ This application puts all three answers on a single screen.
   to everyone else, with near-duplicate detection so that "Theatre" and
   "theatre " cannot coexist.
 - **CSV export** of whatever is on screen, with the active filters applied.
+- **Live search** in the event list: rows update as you type, and the URL
+  follows the search so it can be reloaded or shared.
+- **Duplicate-name warning** while typing a new event: it tells you an event
+  with that exact name already exists (and whether the dates overlap), but it
+  never blocks you, because some events legitimately repeat.
+- **Several audience origins per event**, picked as tags: type, pick, keep
+  adding. The first one stays the main origin, so every query keeps its shape.
+- **Follow-up fields that accept "Pending"** with one click, and contacts that
+  can be a link, a list of names or a status, not only a URL.
+- **Printable user report** from the admin area: a letter-size page with
+  headline figures, the breakdown by department and the full list, ready to
+  print or save as PDF from the browser.
+- **Small touches that add up:** the week view reads in whole hours with a
+  "now" line, today is ringed in the heat map, the open event stays
+  highlighted in the grid, and days and events react to the mouse.
 
 | Month view | Dashboard |
 |---|---|
