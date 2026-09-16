@@ -315,3 +315,167 @@ span.cro-mx-pie:hover{transform:none;box-shadow:none}
   .cro-cuenta-demo{transition:none}
   .cro-cuenta-demo:hover{transform:none}
 }
+
+/* ============================================================
+   Vista de SEMANA (timeGrid) - bloque escrito a mano
+   ------------------------------------------------------------
+   La semana era la unica vista sin estilos propios: se quedaba con los de
+   fabrica de FullCalendar. Todo lo especifico va colgado de
+   .fc-timeGridWeek-view para no rozar Mes ni Lista.
+   ============================================================ */
+
+/* Filas de hora: mas bajas, para que el dia entre casi completo. */
+.fc .fc-timegrid-slot { height: 1.62em; }
+.fc .fc-timegrid-slot-label { vertical-align: top; }
+.fc .fc-timegrid-slot-label-cushion {
+  display: inline-block;
+  padding: .25rem .7rem 0 .4rem;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;   /* todas las cifras miden igual */
+  color: #8a857a;
+}
+.dark .fc .fc-timegrid-slot-label-cushion { color: #7c8494; }
+.fc .fc-timegrid-slot-lane { border-top-color: #e6e3db; }
+.dark .fc .fc-timegrid-slot-lane { border-top-color: #2a2f3a; }
+
+/* Cabecera del dia: nombre pequeno arriba, numero grande debajo,
+   y hoy con el mismo circulo azul que ya usa la vista de Mes. */
+.fc .fc-timegrid-axis-frame { justify-content: flex-end; }
+.fc-timeGridWeek-view .fc-col-header-cell-cushion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: .5rem 0 .55rem;
+}
+.cro-sem-dia {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: #8a857a;
+}
+.dark .cro-sem-dia { color: #7c8494; }
+.cro-sem-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.7rem;
+  min-width: 1.7rem;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #2c2c2c;
+}
+.dark .cro-sem-num { color: #e8e6e1; }
+.fc-timeGridWeek-view .fc-day-today .cro-sem-num { background: #1F3F7A; color: #fff; }
+
+/* La franja "Todo el dia" es donde estan TODOS los eventos (la base solo
+   guarda fechas, nunca horas), asi que es la que debe lucir. */
+.fc .fc-timegrid-axis-cushion {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #8a857a;
+  white-space: normal;      /* sin esto el rotulo se sale y se corta */
+  text-align: right;
+  line-height: 1.25;
+  padding: .55rem .6rem;
+}
+.dark .fc .fc-timegrid-axis-cushion { color: #7c8494; }
+.fc .fc-timegrid-divider { padding: 0; height: 2px; background: #8a857a; }
+.dark .fc .fc-timegrid-divider { background: #666d7e; }
+.fc-timeGridWeek-view .fc-daygrid-body .fc-daygrid-day-events { padding: .3rem 0 .45rem; min-height: 2.4rem; }
+.fc-timeGridWeek-view .fc-daygrid-event-harness { margin-bottom: 3px; }
+.fc-timeGridWeek-view .cro-chip {
+  align-items: flex-start;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  font-size: 11.5px;
+}
+/* Dos lineas: se leen nombres largos sin que la franja se dispare. */
+.fc-timeGridWeek-view .cro-chip-txt {
+  white-space: normal;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.fc-timeGridWeek-view .cro-punto { margin-top: .32em; flex: none; }
+
+/* Sabado y domingo en un tono distinto. */
+.fc .fc-timegrid-col.fc-day-sat,
+.fc .fc-timegrid-col.fc-day-sun,
+.fc-timeGridWeek-view .fc-daygrid-day.fc-day-sat,
+.fc-timeGridWeek-view .fc-daygrid-day.fc-day-sun { background: #faf8f3; }
+.dark .fc .fc-timegrid-col.fc-day-sat,
+.dark .fc .fc-timegrid-col.fc-day-sun,
+.dark .fc-timeGridWeek-view .fc-daygrid-day.fc-day-sat,
+.dark .fc-timeGridWeek-view .fc-daygrid-day.fc-day-sun { background: rgba(255, 255, 255, .025); }
+
+/* El dia de hoy en el mapa de calor.
+   Anillo azul en vez de relleno: la casilla ya usa el fondo para decir cuantos
+   eventos hay, asi que marcarla por dentro mentiria sobre la carga del dia.
+   Va DESPUES de .cro-hm-foco a proposito: si hoy cae dentro de un resaltado,
+   debe seguir leyendose como hoy. */
+.cro-hm-hoy{position:relative;z-index:2;outline:2px solid var(--color-azul);outline-offset:1px;font-weight:800}
+.dark .cro-hm-hoy{outline-color:#6f9bf0}
+
+/* Aviso de evento con el mismo nombre.
+   Va en ambar y no en rojo a proposito: el rojo de .error-campo significa
+   "esto no se puede guardar", y aqui si se puede. En el cronograma hay
+   repeticiones legitimas (el Comite de Mercadeo es mensual), asi que esto
+   informa y deja decidir a la persona. */
+.cro-repetido{margin-top:.5rem;border:1px solid #e0b64a;border-left-width:3px;border-radius:.5rem;background:#fdf7e7;padding:.55rem .7rem;font-size:12px;line-height:1.45;color:#7a5a12}
+.dark .cro-repetido{border-color:#8a6c20;background:#2a2412;color:#e3c878}
+.cro-repetido-tit{font-weight:700}
+.cro-repetido-lista{margin:.3rem 0 0;padding-left:1.1rem;list-style:disc}
+.cro-repetido-lista li{margin-bottom:.1rem}
+.cro-repetido-choque{margin-top:.35rem;font-weight:700}
+.cro-repetido-pie{margin-top:.35rem;opacity:.85}
+
+/* La tabla se atenua mientras llegan los resultados del buscador en vivo.
+   Sin esto, en una conexion lenta no se nota que algo esta pasando. */
+.cro-buscando{opacity:.45;transition:opacity .12s ease}
+
+/* El evento cuya ficha esta abierta queda resaltado en la rejilla, para no
+   perderlo de vista mientras se lee el panel de la derecha. Anillo y no
+   relleno: el fondo del chip ya dice de que area es el evento, y cambiarlo
+   contaria otra cosa. Mismo lenguaje visual que .cro-hm-foco del mapa. */
+.fc .cro-ev-sel{z-index:3}
+.fc .cro-ev-sel .cro-chip{outline:2px solid var(--color-tinta);outline-offset:1px;box-shadow:0 1px 6px rgb(0 0 0 / .18)}
+.dark .fc .cro-ev-sel .cro-chip{outline-color:#e9eaee;box-shadow:0 1px 6px rgb(0 0 0 / .5)}
+/* En la vista de Lista el evento es una fila entera, no un chip. */
+.fc .fc-list-event.cro-ev-sel>td{background:color-mix(in srgb,var(--color-azul) 12%,transparent)}
+
+/* cal · 2026-09-16 · vista de mes: reacción al pasar el mouse sobre los días y los eventos
+   (mismo lenguaje que el resto: 140–160 ms,
+   levantar 1 px con sombra suave, puntos que crecen, y sin movimiento si el sistema pide reducirlo). */
+.fc-dayGridMonth-view .fc-daygrid-day{transition:background-color .16s ease,box-shadow .16s ease}
+.fc-dayGridMonth-view .fc-daygrid-day:not(.fc-day-other):hover{background-color:color-mix(in srgb,var(--color-azul) 7%,transparent)}
+.fc-dayGridMonth-view .fc-daygrid-day.fc-day-today:hover{background-color:color-mix(in srgb,var(--color-azul) 17%,transparent)}
+.dark .fc-dayGridMonth-view .fc-daygrid-day:not(.fc-day-other):hover{background-color:color-mix(in srgb,#9db8ea 12%,transparent)}
+.dark .fc-dayGridMonth-view .fc-daygrid-day.fc-day-today:hover{background-color:rgba(31,63,122,.5)}
+.fc-dayGridMonth-view .fc-daygrid-day-number{transition:color .16s ease}
+.fc-dayGridMonth-view .fc-daygrid-day:hover .fc-daygrid-day-number{color:var(--color-azul)}
+.dark .fc-dayGridMonth-view .fc-daygrid-day:hover .fc-daygrid-day-number{color:#9db8ea}
+.fc-dayGridMonth-view .fc-day-today:hover .fc-daygrid-day-number{color:#fff}
+/* El "+" aparece solo si el usuario puede crear: clic en el día abre "Nuevo evento" con esa fecha. */
+.cro-puede-crear .fc-dayGridMonth-view .fc-daygrid-day:not(.fc-day-other){cursor:pointer}
+.cro-puede-crear .fc-dayGridMonth-view .fc-daygrid-day:not(.fc-day-other) .fc-daygrid-day-frame::after{content:"+";position:absolute;top:.3rem;left:.45rem;width:1.1rem;height:1.1rem;border-radius:9999px;background:var(--color-azul);color:#fff;font-size:13px;font-weight:700;line-height:1.1rem;text-align:center;opacity:0;transform:translateY(3px) scale(.8);transition:opacity .16s ease,transform .16s ease;pointer-events:none}
+.cro-puede-crear .fc-dayGridMonth-view .fc-daygrid-day:not(.fc-day-other):hover .fc-daygrid-day-frame::after{opacity:1;transform:none}
+/* Eventos: el chip se levanta, gana sombra y color; el punto del área crece. */
+.fc-dayGridMonth-view .fc-daygrid-event:hover{filter:none}
+.fc-dayGridMonth-view .fc-daygrid-event-harness:hover{z-index:3}
+.fc-dayGridMonth-view .cro-chip{transition:transform .14s ease,box-shadow .14s ease,background-color .14s ease,opacity .14s ease}
+.fc-dayGridMonth-view .fc-daygrid-event:hover .cro-chip{transform:translateY(-1px);box-shadow:0 3px 10px rgba(27,31,39,.16);background:color-mix(in srgb,var(--c) 26%,white)}
+.dark .fc-dayGridMonth-view .fc-daygrid-event:hover .cro-chip{box-shadow:0 3px 10px rgba(0,0,0,.45);background:color-mix(in srgb,var(--c) 36%,#1B1F27)}
+.fc-dayGridMonth-view .cro-punto{transition:transform .16s ease}
+.fc-dayGridMonth-view .fc-daygrid-event:hover .cro-punto{transform:scale(1.45)}
+@media (prefers-reduced-motion:reduce){.fc-dayGridMonth-view .fc-daygrid-day,.fc-dayGridMonth-view .fc-daygrid-day-number,.fc-dayGridMonth-view .cro-chip,.fc-dayGridMonth-view .cro-punto,.cro-puede-crear .fc-dayGridMonth-view .fc-daygrid-day-frame::after{transition:none}.fc-dayGridMonth-view .fc-daygrid-event:hover .cro-chip,.fc-dayGridMonth-view .fc-daygrid-event:hover .cro-punto{transform:none}}

@@ -38,6 +38,7 @@ $cfg = [
         'vistaMes'         => t('Mes'),
         'vistaSemana'      => t('Semana'),
         'vistaLista'       => t('Lista'),
+        'todoElDia'        => t('Todo el día'),
         'diasSemana'       => explode(' ', t('L M X J V S D')),
     ],
     'areaColores' => array_column(array_map(static fn(array $a): array => ['id' => (string) $a['id'], 'color' => $a['color'] ?: Campos::COLOR_NEUTRO], $areas), 'color', 'id'),
@@ -138,7 +139,7 @@ $conteoPorArea = array_column($conteos['areas'], 'n', 'id');
       <ul class="space-y-2">
         <template x-for="p in proximos" :key="p.id">
           <li>
-            <button type="button" class="cro-prox-btn w-full rounded-lg border-l-[3px] px-2.5 py-1.5 text-left hover:bg-[#F0EEE8] dark:hover:bg-[#232834]" :style="'border-color:' + p.area_color" @click="abrir(p.id)">
+            <button type="button" class="cro-prox-btn w-full rounded-lg border-l-[3px] px-2.5 py-1.5 text-left hover:bg-[#F0EEE8] dark:hover:bg-[#232834]" :style="'border-color:' + p.area_color" @click="irAEvento(p)">
               <span class="block truncate text-sm font-semibold" x-text="p.nombre"></span>
               <span class="block text-xs text-gris" x-text="p.rango + ' · ' + (p.ciudad || p.area)"></span>
             </button>
@@ -194,7 +195,8 @@ $conteoPorArea = array_column($conteos['areas'], 'n', 'id');
               <template x-for="(c, i) in m.celdas" :key="i">
                 <button type="button" class="cro-hm"
                         :class="{ 'cro-hm-vacio': !c, 'cro-hm-0': c && !c.n, 'cro-hm-blanco': c && c.n && nivel(c.n) >= 3,
-                                  'cro-hm-foco': c && resaltado.includes(c.f), 'cro-hm-atenuado': foco && c && !resaltado.includes(c.f) }"
+                                  'cro-hm-foco': c && resaltado.includes(c.f), 'cro-hm-atenuado': foco && c && !resaltado.includes(c.f),
+                                  'cro-hm-hoy': c && c.f === fechaHoy }"
                         :data-f="c ? c.f : ''"
                         :style="fondoCelda(c)"
                         :title="c ? tituloCelda(c) : ''" :disabled="!c" @click="c && irADia(c.f)" x-text="c ? c.d : ''"></button>

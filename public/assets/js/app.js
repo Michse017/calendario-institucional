@@ -78,6 +78,38 @@ document.addEventListener('alpine:init', () => {
     enviando: false,
     inicio: cfg.inicio || '',
     fin: cfg.fin || '',
+    txt: cfg.txt || {},
+
+    // --- Aviso de nombre repetido ---
+    // Informa, nunca impide. Hay repeticiones legítimas (un comité mensual,
+    // un taller semanal), así que bloquear estorbaría más de lo que ayuda:
+    // decide la persona.
+    repetidos: [],
+    async mirarRepetidos(nombre) {
+      const n = String(nombre || '').trim();
+      if (n.length < 3) { this.repetidos = []; return; }
+      const j = await CRO.fetchJson('api/eventos/repetidos', { nombre: n, excluir: cfg.id || 0 });
+      this.repetidos = (j && j.ok && Array.isArray(j.datos)) ? j.datos : [];
+    },
+    /** Alguno de los repetidos se solapa con las fechas que se están poniendo. */
+    get chocaFecha() {
+      if (!this.inicio || !this.fin) { return false; }
+      return this.repetidos.some((r) => r.fecha_inicio <= this.fin && r.fecha_fin >= this.inicio);
+    },
+    /** 'el 9 de septiembre' o 'del 6 al 8 de octubre' (en el idioma de la interfaz). */
+    cuando(r) {
+      // El T00:00:00 es obligatorio: sin él, el navegador lee 'YYYY-MM-DD' como
+      // UTC y al oeste de Greenwich pinta el día anterior.
+      const f = (s) => new Date(s + 'T00:00:00').toLocaleDateString(cfg.idioma || 'es', { day: 'numeric', month: 'long' });
+      return r.fecha_inicio === r.fecha_fin
+        ? (this.txt.el || 'el') + ' ' + f(r.fecha_inicio)
+        : (this.txt.del || 'del') + ' ' + f(r.fecha_inicio) + ' ' + (this.txt.al || 'al') + ' ' + f(r.fecha_fin);
+    },
+    /** Título del aviso, con el número de repetidos ya metido. */
+    tituloRepetidos() {
+      const n = this.repetidos.length;
+      return n === 1 ? (this.txt.repetidoUno || '') : String(this.txt.repetidoVarios || '').replace(':n', String(n));
+    },
   }));
 
   Alpine.data('autocompletar', (cfg) => ({
@@ -189,7 +221,19 @@ document.addEventListener('alpine:init', () => {
     txt: cfg.txt || {},
     cal: null, vista: cfg.vistaInicial || 'dayGridMonth', titulo: '',
     detalle: '', detalleAbierto: false, cargando: false,
+    // Id del evento cuya ficha está abierta. Se guarda para dejarlo resaltado
+    // en la rejilla y no perderlo de vista mientras se lee el panel.
+    seleccionado: 0,
     anio: cfg.anio || new Date().getFullYear(),
+    // Hoy en YYYY-MM-DD y en hora LOCAL, para marcar su casilla en el mapa.
+    // Se arma a mano y no con toISOString(), que convierte a UTC y adelantaría
+    // el día por la tarde en cualquier zona al oeste de Greenwich.
+    // OJO con el nombre: 'hoy' ya está cogido por el método del botón Hoy; si
+    // se llamara igual, el método pisaría la propiedad y el mapa nunca marcaría.
+    fechaHoy: (() => {
+      const d = new Date(), p = (n) => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    })(),
     mapa: { meses: [], max: 0, resumen: {} },
     modoMapa: 'activos',
     resaltado: [],   // fechas resaltadas al pulsar una de las cifras del resumen
@@ -198,9 +242,34 @@ document.addEventListener('alpine:init', () => {
       this.cal = new FullCalendar.Calendar(this.$refs.cal, {
         initialView: 'dayGridMonth', initialDate: cfg.fecha, locale: cfg.idioma || 'es', firstDay: 1,
         headerToolbar: false, height: 'auto', fixedWeekCount: false, dayMaxEvents: 4,
+        // --- Vista de semana ---
+        // La base solo guarda fechas (DATE), nunca horas: todos los eventos son de
+        // día completo. La rejilla de horas no puede contener nada, así que aquí solo
+        // se busca que se lea bien: una fila por hora en vez de dos, y la hora escrita
+        // entera (el idioma 'es' de FullCalendar la dejaba en "0", "1", "2"...).
+        slotDuration: '01:00:00',
+        slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        nowIndicator: true,
+        allDayText: this.txt.todoElDia || 'Todo el día',
+        dayHeaderContent: (a) => {
+          // Solo en la semana: el día arriba en pequeño y el número grande debajo.
+          // Mes y Lista devuelven su texto de siempre y no se enteran de esto.
+          if (a.view.type !== 'timeGridWeek') { return a.text; }
+          const dia = a.date.toLocaleDateString(cfg.idioma || 'es', { weekday: 'short' }).replace('.', '');
+          return { html: `<span class="cro-sem-dia">${CRO.esc(dia)}</span><span class="cro-sem-num">${a.date.getDate()}</span>` };
+        },
         editable: true, eventStartEditable: true, eventDurationEditable: true, eventResizableFromStart: true,
         events: (info, ok, fail) => this.cargar(info, ok, fail),
         eventContent: (arg) => this.chip(arg),
+        // El resalte se aplica aquí y no en chip() porque FullCalendar 6 no deja
+        // repintar los eventos a voluntad. Este enganche corre en CADA montaje
+        // (cambiar de mes, de vista, recargar el feed o llegar desde la lista
+        // cuando los eventos aún no habían cargado), así que el resalte aguanta
+        // todo eso sin tener que acordarse de repetirlo en cada sitio.
+        eventDidMount: (arg) => {
+          arg.el.dataset.ev = arg.event.id;
+          if (String(arg.event.id) === String(this.seleccionado)) { arg.el.classList.add('cro-ev-sel'); }
+        },
         eventClick: (i) => { i.jsEvent.preventDefault(); this.abrir(i.event.id); },
         dateClick: (i) => { if (!cfg.puedeCrear) return; window.location = `${cfg.nuevoUrl}&fecha=${i.dateStr}`; },
         eventAllow: (span, ev) => !!ev.extendedProps.puedeEditar,
@@ -211,6 +280,8 @@ document.addEventListener('alpine:init', () => {
         noEventsContent: this.txt.sinEventosPeriodo,
       });
       this.cal.render();
+      // El CSS enseña el "+" de "crear aquí" al pasar el mouse por un día solo a quien puede crear.
+      if (cfg.puedeCrear) this.$refs.cal.classList.add('cro-puede-crear');
       if (cfg.abrir) this.abrir(cfg.abrir);
       // Si se entra directamente al mapa de calor hay que pedirlo: FullCalendar queda montado
       // pero oculto, y al pasar a Mes cambiarVista() le recalcula el tamaño.
@@ -343,12 +414,28 @@ document.addEventListener('alpine:init', () => {
     },
     semanaTexto(s) { return s ? this.txt.semana + ' ' + String(s).split('-')[1] : ''; },
     irADia(f) { window.location = CRO.url('calendario', { fecha: f, anio: this.anio }); },
+    /**
+     * Abrir desde "Próximos 30 días".
+     *
+     * Además de la ficha, lleva el calendario hasta el evento. Sin esto el
+     * resalte marca algo que no está en pantalla y parece que no funciona: la
+     * tarjeta puede ser de otro mes, y al entrar la vista por defecto es el
+     * mapa de calor, donde no hay chips que marcar.
+     */
+    irAEvento(p) {
+      if (this.vista === 'anio') { this.cambiarVista('dayGridMonth'); }
+      if (p.fecha_inicio) { this.cal.gotoDate(p.fecha_inicio); }
+      this.abrir(p.id);
+    },
     async cargarProximos() {
       const j = await CRO.fetchJson('api/proximos', this.filtros);
       this.proximos = (j && j.ok) ? j.datos : [];
     },
     async abrir(id) {
       this.detalleAbierto = true; this.cargando = true;
+      // Se marca ANTES de pedir la ficha: el resalte no debe depender de la red.
+      this.seleccionado = Number(id) || 0;
+      this.marcarSeleccion();
       try {
         const res = await fetch(CRO.url('api/evento', { id }), { headers: { Accept: 'text/html' } });
         this.detalle = await res.text();
@@ -359,7 +446,16 @@ document.addEventListener('alpine:init', () => {
       }
       this.cargando = false;
     },
-    cerrar() { this.detalleAbierto = false; this.detalle = ''; },
+    cerrar() { this.detalleAbierto = false; this.detalle = ''; this.seleccionado = 0; this.marcarSeleccion(); },
+    /** Resalta en la rejilla el evento abierto; con seleccionado en 0, lo quita. */
+    marcarSeleccion() {
+      for (const el of this.$root.querySelectorAll('.cro-ev-sel')) { el.classList.remove('cro-ev-sel'); }
+      if (!this.seleccionado) { return; }
+      // Un evento de varios días puede tener más de un trozo en la rejilla.
+      for (const el of this.$root.querySelectorAll('[data-ev="' + this.seleccionado + '"]')) {
+        el.classList.add('cro-ev-sel');
+      }
+    },
     async mover(i) {
       const e = i.event;
       const fin = new Date(e.end || e.start); fin.setDate(fin.getDate() - 1);   // fin exclusivo → inclusivo
@@ -387,6 +483,44 @@ document.addEventListener('alpine:init', () => {
       const params = { anio };
       if (String(anio) !== String(new Date().getFullYear())) params.fecha = `${anio}-01-01`;
       window.location = CRO.url('calendario', params);
+    },
+  }));
+
+  /**
+   * Buscador en vivo de la lista de eventos.
+   *
+   * Pide al servidor las filas YA PINTADAS (api/eventos/lista) en vez de
+   * armarlas aquí: así el marcado de una fila existe en un solo sitio
+   * (eventos/_filas.php) y la página normal y el buscador no se separan.
+   * Tampoco se filtra en el navegador sobre lo ya cargado, porque la tabla
+   * está paginada y se estaría buscando solo dentro de la página visible.
+   */
+  Alpine.data('buscadorEventos', () => ({
+    _turno: 0,
+    async buscar() {
+      const params = {};
+      new FormData(this.$root).forEach((v, k) => {
+        if (k !== 'r' && String(v).trim() !== '') { params[k] = v; }
+      });
+      // Cada tecla lanza una petición; si una vieja llega después de una nueva
+      // pintaría resultados caducados. Solo pinta la última que salió.
+      const turno = ++this._turno;
+      const cuerpo = document.getElementById('cro-filas');
+      if (cuerpo) { cuerpo.classList.add('cro-buscando'); }
+      const j = await CRO.fetchJson('api/eventos/lista', params);
+      if (turno !== this._turno) { return; }
+      if (cuerpo) { cuerpo.classList.remove('cro-buscando'); }
+      if (!j || !j.ok) { return; }
+      if (cuerpo) { cuerpo.innerHTML = j.html; }
+      const total = document.getElementById('cro-total');
+      if (total) { total.textContent = j.total; }
+      const pag = document.getElementById('cro-paginacion');
+      if (pag) { pag.hidden = j.paginas <= 1; }
+      // La barra de direcciones refleja lo que se ve, para poder recargar o
+      // compartir el enlace sin perder la búsqueda.
+      const u = new URL(window.location);
+      u.search = new URLSearchParams({ r: 'eventos', ...params }).toString();
+      history.replaceState(null, '', u);
     },
   }));
 
