@@ -74,3 +74,28 @@ function test_asistente_limita_por_ip_y_purga_lo_viejo(): void
         Env::set('GEMINI_API_KEY', $antes);
     });
 }
+
+function test_asistente_devuelve_texto_llano_sin_markdown(): void
+{
+    $limpiar = new ReflectionMethod(Asistente::class, 'sinMarkdown');
+    $limpiar->setAccessible(true);
+    $l = static fn(string $s): string => $limpiar->invoke(null, $s);
+
+    // El panel pinta la respuesta como texto, no como HTML: el Markdown se vería
+    // con los símbolos a la vista. Se le pide al modelo que no lo use y además
+    // se limpia, porque pedirlo no basta: vuelve a él en cuanto se alarga.
+    assertEq('Hay 73 eventos', $l('Hay **73 eventos**'));
+    assertEq('Hay 73 eventos', $l('Hay *73 eventos*'));
+    assertEq('Hay 73 eventos', $l('Hay ***73 eventos***'));
+    assertEq('Hay 73 eventos', $l('Hay __73 eventos__'));
+    assertEq('Usa contar_eventos', $l('Usa `contar_eventos`'));
+    assertEq('Resumen', $l('### Resumen'));
+    assertEq("- Uno\n- Dos", $l("* Uno\n* Dos"), 'las viñetas quedan con guion');
+    assertEq("- Uno\n- Dos", $l("• Uno\n• Dos"));
+    assertEq("- Programación: 23", $l('- **Programación**: 23'));
+
+    // Y lo que NO debe tocar: un asterisco que es parte del texto de verdad.
+    assertEq('5*off Anual y 2*3', $l('5*off Anual y 2*3'), 'un asterisco pegado a letras se respeta');
+    assertEq('asteriscos sueltos *', $l('asteriscos sueltos *'));
+    assertEq('Taller de radio · Enero', $l('Taller de radio · Enero'), 'el texto normal pasa intacto');
+}

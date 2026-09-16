@@ -262,6 +262,11 @@ final class Asistente
         - Directo y en segunda persona. Sin saludos de relleno ni ofrecerte a ayudar al final.
         - Cuando la respuesta sea un camino dentro de la aplicación, nómbralo tal cual
           aparece en pantalla.
+        - TEXTO LLANO, nunca Markdown. Esto se pinta tal cual: los asteriscos, las
+          almohadillas y las comillas invertidas se ven como símbolos sueltos y
+          ensucian la respuesta. Nada de *cursiva*, **negrita**, ### títulos ni
+          `código`. Para una lista, un guion y un espacio al principio de cada línea.
+          Para destacar un nombre, escríbelo entre comillas normales.
 
         QUIÉN TE PREGUNTA
         Rol: {$rol}. Su área: {$suArea}.
@@ -465,6 +470,32 @@ final class Asistente
     }
 
     /**
+     * Quita el Markdown que el modelo insiste en poner.
+     *
+     * El panel pinta la respuesta como TEXTO, no como HTML, y eso es a
+     * propósito: interpretar el marcado de un modelo abre la puerta a inyectar
+     * etiquetas. El precio es que un `**negrita**` se ve con los asteriscos a la
+     * vista. Pedírselo en las instrucciones ayuda pero no basta: los modelos
+     * vuelven al Markdown en cuanto la respuesta se alarga. Esto lo garantiza.
+     *
+     * Se quitan solo las marcas que envuelven texto de verdad, para no estropear
+     * un nombre que lleve un asterisco suelto.
+     */
+    private static function sinMarkdown(string $t): string
+    {
+        $t = preg_replace('/\*\*\*(.+?)\*\*\*/su', '$1', $t) ?? $t;   // ***fuerte***
+        $t = preg_replace('/\*\*(.+?)\*\*/su', '$1', $t) ?? $t;       // **negrita**
+        $t = preg_replace('/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/su', '$1', $t) ?? $t;   // *cursiva*
+        $t = preg_replace('/(?<![\w_])__(.+?)__(?![\w_])/su', '$1', $t) ?? $t;
+        $t = preg_replace('/`{1,3}([^`]*)`{1,3}/su', '$1', $t) ?? $t;  // `código`
+        $t = preg_replace('/^\s{0,3}#{1,6}\s+/mu', '', $t) ?? $t;      // ### títulos
+        // Las viñetas se dejan, pero siempre con guion: el asterisco al principio
+        // de línea es justo lo que se ve como símbolo raro.
+        $t = preg_replace('/^(\s*)[*+•]\s+/mu', '$1- ', $t) ?? $t;
+        return trim($t);
+    }
+
+    /**
      * El texto de la respuesta.
      *
      * @param bool $pidiendoDatos true si el modelo seguía pidiendo consultas al
@@ -479,7 +510,7 @@ final class Asistente
         }
         $texto = trim($texto);
         if ($texto !== '') {
-            return $texto;
+            return self::sinMarkdown($texto);
         }
         // Un vacío tiene tres causas distintas y merecen tres mensajes distintos:
         // decir "no puedo responder a eso" cuando la respuesta se cortó sería
