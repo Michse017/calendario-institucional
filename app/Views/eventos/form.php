@@ -4,16 +4,46 @@ use App\Core\Idioma;
 use App\Core\View;
 
 $v = static fn(string $k): string => (string) ($valores[$k] ?? '');
+/**
+ * Alta por pasos.
+ *
+ * Editar sigue mostrando el formulario entero: quien edita viene a cambiar un
+ * campo concreto, no a recorrer cuatro pantallas. De ahí que el paso 0
+ * signifique "enséñalo todo".
+ */
+$PASOS   = 4;
+$TITULOS = [t('Cuándo y qué'), t('Dónde y quién'), t('Seguimiento'), t('Contactos y evidencia')];
+$campoPaso = [
+    'nombre' => 1, 'fecha_inicio' => 1, 'fecha_fin' => 1, 'estado' => 1,
+    'tipo_accion' => 1, 'tipo_accion_otro' => 1, 'segmento' => 1, 'segmento_otro' => 1,
+    'pais' => 2, 'ciudad' => 2, 'mercado' => 2, 'organizador' => 2,
+    'area' => 2, 'linea_estrategica' => 2,
+    'objetivo' => 3, 'resultados' => 3, 'alianzas' => 3, 'observaciones' => 3,
+    'contactos_url' => 4, 'evidencia_url' => 4, 'reuniones' => 4,
+];
+$pasoInicial = $modo === 'crear' ? 1 : 0;
+if ($pasoInicial === 1) {
+    // Si el servidor devolvió pegas, se abre en el primer paso que las tenga:
+    // dejar a alguien en el paso 1 con el error en el 4 es mandarlo a buscar.
+    $conPega = array_intersect_key($campoPaso, ($errores ?: []) + ($sugerencias ?: []));
+    if ($conPega) {
+        $pasoInicial = min($conPega);
+    }
+}
 // Lo que pinta el JavaScript del formulario viaja ya traducido en su configuración.
 $cfgForm = [
-    'inicio' => $v('fecha_inicio'), 'fin' => $v('fecha_fin'),
-    'id'     => (int) ($valores['id'] ?? 0),
-    'idioma' => Idioma::actual(),
-    'txt'    => [
+    'inicio'  => $v('fecha_inicio'), 'fin' => $v('fecha_fin'),
+    'id'      => (int) ($valores['id'] ?? 0),
+    'idioma'  => Idioma::actual(),
+    'paso'    => $pasoInicial, 'pasos' => $PASOS, 'titulos' => $TITULOS,
+    'txt'     => [
         'el'  => t('el'), 'del' => t('del'), 'al' => t('al'),
         'repetidoUno'    => t('Ya existe un evento con este mismo nombre:'),
         'repetidoVarios' => t('Ya existen :n eventos con este mismo nombre:'),
         'sinArea'        => t('Sin área'),
+        'faltaRellenar'  => t('Falta rellenar «:campo».'),
+        'consejoNA'      => t('Si no aplica, márcalo con el botón N/A.'),
+        'faltanCampos'   => t('Faltan campos obligatorios por rellenar.'),
     ],
 ];
 $err = static fn(string $k): string => isset($errores[$k]) ? '<p class="error-campo" id="err-' . $k . '">' . h(t($errores[$k])) . '</p>' : '';
@@ -39,7 +69,8 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
     ]);
 };
 ?>
-<form method="post" action="<?= h($accion) ?>" class="mx-auto max-w-4xl" x-data="formularioEvento(<?= h(json_encode($cfgForm)) ?>)" @submit="enviando = true">
+<form method="post" action="<?= h($accion) ?>" class="mx-auto max-w-4xl" x-data="formularioEvento(<?= h(json_encode($cfgForm)) ?>)" @submit="enviar($event)"
+      @keydown.enter="if (paso > 0 && paso < pasos && $event.target.tagName !== 'TEXTAREA') { $event.preventDefault(); siguiente(); }"<?= $modo === 'crear' ? ' novalidate' : '' ?>>
   <?= csrf_campo() ?>
   <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
     <div>
@@ -48,9 +79,34 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
     </div>
     <div class="flex gap-2">
       <a href="<?= h(url('calendario')) ?>" class="btn-secundario"><?= h(t('Volver')) ?></a>
-      <button type="submit" class="btn-primario" :disabled="enviando"><?= h(t('Guardar')) ?></button>
+      <button type="submit" class="btn-primario" x-show="paso === 0 || paso === pasos" @click="enviar($event)" :disabled="enviando"><?= h(t('Guardar')) ?></button>
     </div>
   </div>
+
+  <!-- Barra de pasos: es SOLO una guía visual. No se puede pulsar a propósito;
+       se avanza y se retrocede con Siguiente y Atrás, que son los que validan.
+       Por eso son <li> y no <button>: lo que no se puede usar, no debe
+       parecer que se puede. -->
+  <ol class="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4" x-show="paso > 0" aria-label="<?= h(t('Progreso del formulario')) ?>">
+    <template x-for="n in pasos" :key="n">
+      <li class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-left text-xs font-semibold transition"
+          :class="n === paso ? 'border-azul bg-azul text-white'
+                 : (n < paso ? 'border-azul/40 bg-azul-claro text-azul'
+                 : 'border-borde bg-white text-gris dark:border-noche-borde dark:bg-noche-2')"
+          :aria-current="n === paso ? 'step' : false">
+        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px]"
+              :class="n === paso ? 'bg-white/20' : (n < paso ? 'bg-azul/15' : 'bg-[#EEECE6] dark:bg-[#232834]')"
+              x-text="n < paso ? '✓' : n"></span>
+        <span class="truncate" x-text="titulos[n - 1]"></span>
+      </li>
+    </template>
+  </ol>
+
+  <!-- Lo que falta, dicho en la página. El globo del navegador se pierde al
+       cambiar de paso y entonces parece que el botón no hace nada. -->
+  <div x-show="aviso" x-cloak role="alert"
+       class="mb-6 rounded-xl border border-peligro/30 bg-peligro/10 px-4 py-3 text-sm text-peligro"
+       x-text="aviso"></div>
 
   <?php if ($sugerencias): ?>
   <div class="mb-6 rounded-xl border border-estado-ambar/40 bg-estado-ambar/10 px-4 py-3 text-sm"><strong><?= h(t('Un momento')) ?>:</strong> <?= h(t('algunos valores se parecen a otros que ya existen. Revisa las sugerencias marcadas; puedes usar el existente o mantener el tuyo y guardar de nuevo.')) ?></div>
@@ -62,7 +118,7 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
   <div class="mb-6 rounded-xl border border-[#8A8F98]/40 bg-[#8A8F98]/10 px-4 py-3 text-sm"><strong><?= h(t('Evento cancelado')) ?></strong><?= $motivo !== '' ? ' · ' . h($motivo) : '' ?>. <?= h(t('Puedes corregir datos; para volver a activarlo usa "Reanudar evento".')) ?></div>
   <?php endif; ?>
 
-  <section class="card p-6">
+  <section class="card p-6" data-paso="1" x-show="paso === 0 || paso === 1">
     <h2 class="mb-4 font-serif text-xl">1 · <?= h(t('Cuándo y qué')) ?></h2>
     <div class="grid gap-4 md:grid-cols-6">
       <div class="md:col-span-6">
@@ -120,7 +176,7 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
     </div>
   </section>
 
-  <section class="card mt-6 p-6">
+  <section class="card mt-6 p-6" data-paso="2" x-show="paso === 0 || paso === 2">
     <h2 class="mb-4 font-serif text-xl">2 · <?= h(t('Dónde y quién')) ?></h2>
     <div class="grid gap-4 md:grid-cols-2">
       <?= $catalogo('pais') ?>
@@ -141,9 +197,9 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
     </div>
   </section>
 
-  <section class="card mt-6 p-6">
+  <section class="card mt-6 p-6" data-paso="3" x-show="paso === 0 || paso === 3">
     <h2 class="mb-1 font-serif text-xl">3 · <?= h(t('Seguimiento')) ?></h2>
-    <p class="mb-4 text-xs text-gris"><?= h(t('Es la única sección donde vale')) ?> <b>N/A</b> <?= h(t('si algo no aplica, o')) ?> <b><?= h(t('Pendiente')) ?></b> <?= h(t('si todavía no se sabe: pulsa los botones que hay junto al nombre de cada campo y se rellena solo.')) ?></p>
+    <p class="mb-4 text-xs text-gris"><?= h(t('Esta sección y la siguiente son las únicas donde vale')) ?> <b>N/A</b> <?= h(t('si algo no aplica, o')) ?> <b><?= h(t('Pendiente')) ?></b> <?= h(t('si todavía no se sabe: pulsa los botones que hay junto al nombre de cada campo y se rellena solo.')) ?></p>
     <div class="grid gap-4 md:grid-cols-2">
       <?php foreach (['objetivo' => 3, 'resultados' => 3, 'alianzas' => 2, 'observaciones' => 3] as $t => $filas): ?>
       <?php $autoNa = in_array($t, Campos::AUTO_NA, true); ?>
@@ -162,6 +218,13 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
         <?= $err($t) ?>
       </div>
       <?php endforeach; ?>
+    </div>
+  </section>
+
+  <section class="card mt-6 p-6" data-paso="4" x-show="paso === 0 || paso === 4">
+    <h2 class="mb-1 font-serif text-xl">4 · <?= h(t('Contactos y evidencia')) ?></h2>
+    <p class="mb-4 text-xs text-gris"><?= h(t('Aquí también valen')) ?> <b>N/A</b> <?= h(t('y')) ?> <b><?= h(t('Pendiente')) ?></b> <?= h(t('con los botones de cada campo. En Contactos y Aforo el campo propone opciones al escribir, pero puedes poner lo que necesites. Evidencia sigue siendo un enlace.')) ?></p>
+    <div class="grid gap-4 md:grid-cols-2">
       <?php
       /**
        * Sugerencias del desplegable. Es un <datalist>: propone, no obliga.
@@ -210,8 +273,12 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
       </div>
     <?php else: ?><span></span><?php endif; ?>
     <div class="flex gap-2">
-      <a href="<?= h(url('calendario')) ?>" class="btn-secundario"><?= h(t('Volver')) ?></a>
-      <button type="submit" class="btn-primario" :disabled="enviando"><?= h(t('Guardar')) ?></button>
+      <!-- "Volver" solo al editar: junto a "Atrás" las dos se confunden, y arriba
+           ya hay un "Volver" para salirse del formulario. -->
+      <a href="<?= h(url('calendario')) ?>" class="btn-secundario" x-show="paso === 0"><?= h(t('Volver')) ?></a>
+      <button type="button" class="btn-secundario" x-show="paso > 1" @click="atras()">← <?= h(t('Atrás')) ?></button>
+      <button type="button" class="btn-primario" x-show="paso > 0 && paso < pasos" @click="siguiente()"><?= h(t('Siguiente')) ?> →</button>
+      <button type="submit" class="btn-primario" x-show="paso === 0 || paso === pasos" @click="enviar($event)" :disabled="enviando"><?= h(t('Guardar')) ?></button>
     </div>
   </div>
 </form>

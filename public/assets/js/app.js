@@ -80,6 +80,117 @@ document.addEventListener('alpine:init', () => {
     fin: cfg.fin || '',
     txt: cfg.txt || {},
 
+    // 0 = formulario entero (al editar). 1..pasos = alta por pasos.
+    paso: cfg.paso || 0,
+    // Lo que se dice EN LA PÁGINA cuando no se puede seguir. El globo del
+    // navegador se pierde al cambiar de paso y deja la sensación de que el
+    // botón no hace nada.
+    aviso: '',
+    pasos: cfg.pasos || 4,
+    titulos: cfg.titulos || [],
+
+    /** Qué falta, dicho con el nombre del campo tal como se lee en pantalla. */
+    pista(campo) {
+      const caja = campo.closest('[x-data]') || campo.parentElement;
+      const et = (campo.id && this.$root.querySelector('label[for="' + campo.id + '"]'))
+        || (caja && caja.querySelector('label'));
+      const nombre = et ? et.textContent.trim() : '';
+      // El consejo del N/A solo donde ese botón existe: sugerirlo en un campo
+      // que no lo tiene manda a buscar algo que no está. Se mira el grupo del
+      // propio campo, no el ancestro con x-data (para un campo suelto ese
+      // ancestro es el FORMULARIO entero y encontraría los N/A de otros campos).
+      const grupo = campo.closest('div');
+      const conNA = !!(grupo && [...grupo.querySelectorAll('button')].some((b) => b.textContent.trim() === 'N/A'));
+      const consejo = conNA ? ' ' + (this.txt.consejoNA || '') : '';
+      return nombre
+        ? String(this.txt.faltaRellenar || 'Falta rellenar «:campo».').replace(':campo', nombre) + consejo
+        : (this.txt.faltanCampos || 'Faltan campos obligatorios por rellenar.');
+    },
+
+    /** Lleva la vista hasta el campo que no es un control (el botón del panel). */
+    senalar(oculto) {
+      const caja = oculto.closest('[x-data]');
+      // NO se abre el panel a la fuerza: el propio clic en "Siguiente" cuenta
+      // como clic fuera del campo y el componente quedaría creyéndose abierto
+      // con el panel oculto. Basta con enfocar y llevar la vista.
+      const boton = caja && caja.querySelector('.cro-sel-btn');
+      if (boton) { boton.focus(); boton.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    },
+
+    /** El primer campo con problema DEL PASO, en el orden en que se ve. */
+    primerProblema(sec) {
+      for (const el of sec.querySelectorAll(':invalid, [data-obligatorio]')) {
+        if (el.hasAttribute('data-obligatorio')) {
+          if (el.value.trim() === '') { return el; }
+        } else {
+          return el;
+        }
+      }
+      return null;
+    },
+
+    /** Lleva la atención al campo, sea un control normal o el botón del panel. */
+    senalarCampo(malo) {
+      if (malo.hasAttribute('data-obligatorio')) { this.senalar(malo); return; }
+      malo.focus();
+      malo.reportValidity();
+    },
+
+    /**
+     * Deshabilita el botón DESPUÉS de que el navegador haya lanzado el envío.
+     * Hacerlo dentro del manejador del clic lo cancelaba: el disabled llegaba
+     * antes de la acción por defecto y el formulario no salía.
+     */
+    marcarEnviando() {
+      setTimeout(() => { this.enviando = true; }, 0);
+    },
+
+    /** Valida solo el paso visible: los siguientes aún pueden estar vacíos. */
+    validarPaso() {
+      // $root y no $el: dentro de un método, $el es el botón que disparó el evento.
+      const sec = this.$root.querySelector('[data-paso="' + this.paso + '"]');
+      if (!sec) { return true; }
+      const malo = this.primerProblema(sec);
+      if (malo) {
+        this.aviso = this.pista(malo);
+        setTimeout(() => this.senalarCampo(malo), 80);
+        return false;
+      }
+      this.aviso = '';
+      return true;
+    },
+    siguiente() { if (this.validarPaso()) { this.paso++; this.arriba(); } },
+    atras() { if (this.paso > 1) { this.paso--; this.aviso = ''; this.arriba(); } },
+    arriba() { window.scrollTo({ top: 0, behavior: 'smooth' }); },
+
+    /**
+     * En el alta el formulario lleva novalidate. Si no, un campo obligatorio
+     * vacío en un paso oculto bloquearía el envío EN SILENCIO: el navegador no
+     * puede enfocar lo que no se ve. Aquí se busca al culpable y se lleva a la
+     * persona hasta su paso. Se llama desde el clic del botón ADEMÁS de desde
+     * @submit, por si algún campo detiene el evento antes de llegar aquí.
+     */
+    enviar(e) {
+      // Al editar se ve el formulario entero y valida el navegador.
+      if (this.paso === 0) { this.marcarEnviando(); return; }
+      // Se recorren los pasos EN ORDEN para llevar al primer problema de verdad.
+      for (let n = 1; n <= this.pasos; n++) {
+        const sec = this.$root.querySelector('[data-paso="' + n + '"]');
+        if (!sec) { continue; }
+        const malo = this.primerProblema(sec);
+        if (malo) {
+          e.preventDefault();
+          this.paso = n;
+          this.aviso = this.pista(malo);
+          // 80 ms y no 0: al cambiar de paso, Alpine oculta el botón pulsado y
+          // el navegador devuelve el foco al cuerpo después de un timer a 0.
+          setTimeout(() => this.senalarCampo(malo), 80);
+          return;
+        }
+      }
+      this.marcarEnviando();
+    },
+
     // --- Aviso de nombre repetido ---
     // Informa, nunca impide. Hay repeticiones legítimas (un comité mensual,
     // un taller semanal), así que bloquear estorbaría más de lo que ayuda:

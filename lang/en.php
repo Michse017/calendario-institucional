@@ -579,4 +579,27 @@ return [
     'Generado desde Administración › Usuarios. No se incluyen correos ni datos personales.'
         => 'Generated from Administration › Users. No emails or personal data are included.',
 
+
+    // Alta por pasos
+    'Contactos y evidencia'
+        => 'Contacts and evidence',
+    'Progreso del formulario'
+        => 'Form progress',
+    'Falta rellenar «:campo».'
+        => '":campo" still needs to be filled in.',
+    'Si no aplica, márcalo con el botón N/A.'
+        => 'If it does not apply, mark it with the N/A button.',
+    'Faltan campos obligatorios por rellenar.'
+        => 'Some required fields are still empty.',
+    'Atrás'
+        => 'Back',
+    'Esta sección y la siguiente son las únicas donde vale'
+        => 'This section and the next one are the only ones where',
+    'Aquí también valen'
+        => 'Here too you can use',
+    'y'
+        => 'and',
+    'con los botones de cada campo. En Contactos y Aforo el campo propone opciones al escribir, pero puedes poner lo que necesites. Evidencia sigue siendo un enlace.'
+        => 'with the buttons on each field. Contacts and Attendance suggest options as you type, but you can write whatever you need. Evidence is still a link only.',
+
 ];

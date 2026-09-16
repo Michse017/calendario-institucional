@@ -72,7 +72,9 @@ if ($multiple) {
   </ul>
 
   <?php elseif ($expandible): ?>
-  <input type="hidden" name="<?= $campo ?>" :value="valor">
+  <!-- data-obligatorio: esto es un botón con un campo oculto detrás, así que el
+       navegador no puede exigirlo. Lo vigila el asistente por pasos. -->
+  <input type="hidden" name="<?= $campo ?>" :value="valor" data-obligatorio="1">
   <button type="button" id="c-<?= $campo ?>" class="input cro-sel-btn" :class="{ 'cro-sel-vacio': !valor }"
           @click="abierto = !abierto" @keydown.escape="abierto = false" :aria-expanded="abierto ? 'true' : 'false'"<?= $aria ?>>
     <span class="cro-sel-cod" x-show="codigo(valor)" x-cloak x-text="codigo(valor)"></span>
