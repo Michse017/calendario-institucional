@@ -179,6 +179,18 @@ safety filters, and a system instruction that fixes the topic and refuses to
 take new instructions from inside a question. Tested against off-topic
 questions, harmful requests and four jailbreak attempts.
 
+**Indirect injection gets its own three layers.** The obvious attack is to type
+an instruction into the chat box. The one people miss is to put it in the
+*data*: event names are written by whoever uses the app, and `buscar_eventos`
+feeds them to the model. So a name saying "ignore your instructions" arrives as
+model input. Against that: the system instruction states that query results are
+data and never orders; the tool output carries an explicit provenance note; and
+`AsistenteDatos::inerte()` defuses the handful of phrasings these attacks reuse
+before the text ever leaves the server. The name is marked, not hidden — an
+event may legitimately be called anything, and concealing the row would be
+worse than showing it flagged. Verified end to end by planting a hostile event
+name and asking the assistant to look it up: it did not comply.
+
 **None of this makes it trustworthy with secrets.** It is a help assistant over
 public demo data, not an authorisation boundary.
 
