@@ -4,20 +4,45 @@
 // Se pegan en Power BI una a una (Inicio › Nueva medida) o de golpe con
 // Tabular Editor. Están escritas contra las vistas de sql/002_bi.sql.
 //
-// Relaciones que hay que crear en el modelo (todas de uno a varios, desde la
-// dimensión hacia el hecho, dirección simple salvo donde se indica):
-//   bi_dim_fecha[fecha]                 -> bi_hechos_eventos[fecha_inicio]   (activa)
-//   bi_dim_fecha[fecha]                 -> bi_hechos_dias[fecha]             (activa)
-//   bi_dim_area[area_id]                -> bi_hechos_eventos[area_id]
-//   bi_dim_tipo[tipo_id]                -> bi_hechos_eventos[tipo_id]
-//   bi_dim_publico[publico_id]          -> bi_hechos_eventos[publico_id]
-//   bi_dim_linea[linea_id]              -> bi_hechos_eventos[linea_id]
-//   bi_dim_estado[estado]               -> bi_hechos_eventos[estado]
-//   bi_dim_usuario[usuario_id]          -> bi_hechos_actividad[usuario_id]
-//   bi_hechos_eventos[evento_id]        -> bi_puente_procedencia[evento_id]
-//   bi_dim_procedencia[procedencia_id]  -> bi_puente_procedencia[procedencia_id]
-//                                          (esta en AMBAS direcciones: es el
-//                                           puente de varios a varios)
+// RELACIONES DEL MODELO
+//
+// Son dos tablas de hechos (eventos y evento-día) que comparten las mismas
+// dimensiones. Por eso cada dimensión se conecta DOS veces, una a cada hecho.
+// Todas de uno a varios, desde la dimensión hacia el hecho, dirección simple
+// salvo la que se indica.
+//
+//   bi_dim_fecha[fecha]        -> bi_hechos_eventos[fecha_inicio]
+//   bi_dim_fecha[fecha]        -> bi_hechos_dias[fecha]
+//   bi_dim_area[area_id]       -> bi_hechos_eventos[area_id]
+//   bi_dim_area[area_id]       -> bi_hechos_dias[area_id]
+//   bi_dim_tipo[tipo_id]       -> bi_hechos_eventos[tipo_id]
+//   bi_dim_tipo[tipo_id]       -> bi_hechos_dias[tipo_id]
+//   bi_dim_publico[publico_id] -> bi_hechos_eventos[publico_id]
+//   bi_dim_publico[publico_id] -> bi_hechos_dias[publico_id]
+//   bi_dim_linea[linea_id]     -> bi_hechos_eventos[linea_id]
+//   bi_dim_linea[linea_id]     -> bi_hechos_dias[linea_id]
+//   bi_dim_estado[estado]      -> bi_hechos_eventos[estado]
+//   bi_dim_estado[estado]      -> bi_hechos_dias[estado]
+//   bi_dim_usuario[usuario_id] -> bi_hechos_actividad[usuario_id]
+//   bi_dim_fecha[fecha]        -> bi_hechos_actividad[fecha]
+//
+//   Procedencias (varios a varios, a través del puente):
+//   bi_hechos_eventos[evento_id]       -> bi_puente_procedencia[evento_id]
+//   bi_dim_procedencia[procedencia_id] -> bi_puente_procedencia[procedencia_id]
+//                                         *** en AMBAS direcciones ***
+//
+// DOS RELACIONES QUE NO HAY QUE CREAR, Y POR QUÉ:
+//
+// 1. bi_hechos_eventos[evento_id] -> bi_hechos_dias[evento_id].
+//    Cerraría un circuito (fecha -> eventos -> días -> fecha) y Power BI la
+//    rechaza. No hace falta: la tabla de días ya lleva sus propias claves de
+//    dimensión, justamente para poder colgar de las mismas listas.
+//
+// 2. bi_dim_procedencia -> bi_hechos_eventos[procedencia_id] (ni a los días).
+//    Dejaría dos caminos distintos entre procedencia y evento, el directo y el
+//    del puente, y el modelo se vuelve ambiguo. El puente es el único camino.
+//    Para quedarse solo con la procedencia principal se filtra la columna
+//    bi_puente_procedencia[es_principal] = 1, que para eso está.
 //
 // Marcar bi_dim_fecha como tabla de fechas (Diseño › Marcar como tabla de fechas).
 // ---------------------------------------------------------------------------
