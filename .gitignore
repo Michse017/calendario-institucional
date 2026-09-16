@@ -5,6 +5,8 @@
 storage/logs/*
 !storage/logs/.gitkeep
 storage/tmp/
+# Volcados de la capa de analisis: se regeneran con bin/exportar_bi.php
+storage/bi/
 
 # Dependencias
 node_modules/

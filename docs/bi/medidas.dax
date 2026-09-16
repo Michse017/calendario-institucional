@@ -1,0 +1,184 @@
+// ---------------------------------------------------------------------------
+// Medidas DAX para el modelo del calendario institucional.
+//
+// Se pegan en Power BI una a una (Inicio › Nueva medida) o de golpe con
+// Tabular Editor. Están escritas contra las vistas de sql/002_bi.sql.
+//
+// Relaciones que hay que crear en el modelo (todas de uno a varios, desde la
+// dimensión hacia el hecho, dirección simple salvo donde se indica):
+//   bi_dim_fecha[fecha]                 -> bi_hechos_eventos[fecha_inicio]   (activa)
+//   bi_dim_fecha[fecha]                 -> bi_hechos_dias[fecha]             (activa)
+//   bi_dim_area[area_id]                -> bi_hechos_eventos[area_id]
+//   bi_dim_tipo[tipo_id]                -> bi_hechos_eventos[tipo_id]
+//   bi_dim_publico[publico_id]          -> bi_hechos_eventos[publico_id]
+//   bi_dim_linea[linea_id]              -> bi_hechos_eventos[linea_id]
+//   bi_dim_estado[estado]               -> bi_hechos_eventos[estado]
+//   bi_dim_usuario[usuario_id]          -> bi_hechos_actividad[usuario_id]
+//   bi_hechos_eventos[evento_id]        -> bi_puente_procedencia[evento_id]
+//   bi_dim_procedencia[procedencia_id]  -> bi_puente_procedencia[procedencia_id]
+//                                          (esta en AMBAS direcciones: es el
+//                                           puente de varios a varios)
+//
+// Marcar bi_dim_fecha como tabla de fechas (Diseño › Marcar como tabla de fechas).
+// ---------------------------------------------------------------------------
+
+
+// ------------------------------------------------------------------ Volumen
+
+Eventos = COUNTROWS ( bi_hechos_eventos )
+
+Eventos realizados =
+CALCULATE ( [Eventos], bi_dim_estado[estado] = "realizado" )
+
+Eventos cancelados =
+CALCULATE ( [Eventos], bi_dim_estado[estado] = "cancelado" )
+
+Eventos vigentes =
+// Lo planeado que sigue en pie: todo menos lo cancelado. Es el denominador
+// honesto para hablar de cumplimiento.
+CALCULATE ( [Eventos], bi_dim_estado[estado] <> "cancelado" )
+
+
+// ---------------------------------------------------------------- Ejecución
+
+% de cumplimiento =
+// Qué parte de lo que seguía en pie llegó a hacerse.
+DIVIDE ( [Eventos realizados], [Eventos vigentes] )
+
+% de cancelación =
+DIVIDE ( [Eventos cancelados], [Eventos] )
+
+
+// -------------------------------------------------------------------- Aforo
+// El aforo solo existe cuando alguien escribió un número. Los eventos sin
+// dato quedan fuera del promedio a propósito: contarlos como cero diría que
+// no fue nadie, que es distinto de "no lo hemos medido".
+
+Aforo total = SUM ( bi_hechos_eventos[aforo] )
+
+Aforo medio = AVERAGE ( bi_hechos_eventos[aforo] )
+
+Eventos con aforo =
+CALCULATE ( [Eventos], bi_hechos_eventos[aforo_declarado] = TRUE () )
+
+% de aforo reportado =
+// Indicador de calidad del dato, no del evento. Si esto baja, cualquier
+// conclusión sobre público se vuelve frágil y conviene decirlo en el informe.
+DIVIDE ( [Eventos con aforo], [Eventos] )
+
+Aforo por día =
+// Reparte el público de un evento largo entre sus días, para comparar de
+// verdad un festival de dos semanas con una charla de una tarde.
+SUM ( bi_hechos_dias[aforo_por_dia] )
+
+
+// --------------------------------------------------------------- Ocupación
+// Estas miden carga de trabajo, y por eso salen de bi_hechos_dias: un evento
+// de diez días pesa diez veces más en la agenda que uno de un día.
+
+Días de ocupación = COUNTROWS ( bi_hechos_dias )
+
+Días con actividad = DISTINCTCOUNT ( bi_hechos_dias[fecha] )
+
+Duración media = AVERAGE ( bi_hechos_eventos[duracion_dias] )
+
+Frentes abiertos a la vez =
+// El día más cargado del periodo: cuántos eventos coincidían.
+MAXX ( VALUES ( bi_dim_fecha[fecha] ), CALCULATE ( DISTINCTCOUNT ( bi_hechos_dias[evento_id] ) ) )
+
+% del calendario ocupado =
+DIVIDE ( [Días con actividad], COUNTROWS ( ALLSELECTED ( bi_dim_fecha ) ) )
+
+
+// ------------------------------------------------------------ Concentración
+// Responde a "¿el área reparte su año o lo amontona?".
+
+Mes pico =
+// El mes con más eventos dentro de lo que se esté filtrando.
+VAR PorMes =
+    ADDCOLUMNS ( VALUES ( bi_dim_fecha[anio_mes] ), "@n", [Eventos] )
+RETURN
+    MAXX ( TOPN ( 1, PorMes, [@n], DESC ), bi_dim_fecha[anio_mes] )
+
+Eventos del mes pico =
+MAXX ( VALUES ( bi_dim_fecha[anio_mes] ), [Eventos] )
+
+% concentrado en el mes pico =
+// Si un área saca la mitad de su año en un solo mes, esto lo delata.
+DIVIDE ( [Eventos del mes pico], CALCULATE ( [Eventos], ALL ( bi_dim_fecha ) ) )
+
+
+// --------------------------------------------------------------- Planeación
+
+Antelación media (días) =
+// Cuánto tiempo pasa entre que se registra el evento y el día en que ocurre.
+// Un número bajo significa que el calendario se está usando como acta y no
+// como herramienta de planeación.
+AVERAGE ( bi_hechos_eventos[dias_de_antelacion] )
+
+Eventos improvisados =
+// Registrados con menos de una semana de margen.
+CALCULATE ( [Eventos], bi_hechos_eventos[dias_de_antelacion] < 7 )
+
+
+// ------------------------------------------------------------- Procedencias
+// Ojo: un evento puede apuntar a varias procedencias. Hay que contar eventos
+// DISTINTOS o el total sale inflado.
+
+Eventos por procedencia = DISTINCTCOUNT ( bi_puente_procedencia[evento_id] )
+
+Procedencias por evento =
+DIVIDE ( COUNTROWS ( bi_puente_procedencia ), [Eventos por procedencia] )
+
+Eventos multiprocedencia =
+VAR PorEvento =
+    ADDCOLUMNS (
+        VALUES ( bi_puente_procedencia[evento_id] ),
+        "@n", CALCULATE ( COUNTROWS ( bi_puente_procedencia ) )
+    )
+RETURN
+    COUNTROWS ( FILTER ( PorEvento, [@n] > 1 ) )
+
+
+// ----------------------------------------------------------- Calidad y uso
+
+% con evidencia =
+DIVIDE (
+    CALCULATE ( [Eventos], bi_hechos_eventos[tiene_evidencia] = TRUE () ),
+    [Eventos realizados]
+)
+
+% con alianzas =
+DIVIDE ( CALCULATE ( [Eventos], bi_hechos_eventos[tiene_alianzas] = TRUE () ), [Eventos] )
+
+Ediciones = COUNTROWS ( bi_hechos_actividad )
+
+Personas que editan = DISTINCTCOUNT ( bi_hechos_actividad[usuario_id] )
+
+
+// ------------------------------------------------------------- Comparativas
+
+Eventos mes anterior =
+CALCULATE ( [Eventos], DATEADD ( bi_dim_fecha[fecha], -1, MONTH ) )
+
+Variación mensual =
+VAR Previo = [Eventos mes anterior]
+RETURN IF ( NOT ISBLANK ( Previo ), DIVIDE ( [Eventos] - Previo, Previo ) )
+
+Eventos acumulados del año =
+TOTALYTD ( [Eventos], bi_dim_fecha[fecha] )
+
+
+// ------------------------------------------------------------------- Textos
+// Para tarjetas que expliquen el número en vez de dejarlo solo.
+
+Lectura de cumplimiento =
+VAR Pct = [% de cumplimiento]
+RETURN
+    SWITCH (
+        TRUE (),
+        ISBLANK ( Pct ), "Sin eventos en el periodo",
+        Pct >= 0.9, "Al día: se está cumpliendo lo planeado",
+        Pct >= 0.7, "Aceptable, con algunos pendientes",
+        "Atención: hay mucho planeado sin ejecutar"
+    )
