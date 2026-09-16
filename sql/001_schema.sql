@@ -143,6 +143,21 @@ CREATE TABLE IF NOT EXISTS `eventos_historial` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
+-- Uso del asistente de ayuda
+--
+-- Solo cuenta peticiones para poder limitarlas por IP. NO guarda lo que la
+-- gente pregunta: un asistente que archiva conversaciones es un problema de
+-- privacidad que nadie pidió, y para el límite basta con la marca de tiempo.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `asistente_uso` (
+  `id`        BIGINT NOT NULL AUTO_INCREMENT,
+  `ip`        VARCHAR(45) NOT NULL,
+  `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ip_fecha` (`ip`,`creado_en`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
 -- Procedencias del público (varias por evento)
 --
 -- `eventos.mercado_id` sigue guardando la principal (todas las consultas hacen

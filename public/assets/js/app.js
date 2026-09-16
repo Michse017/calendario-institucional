@@ -687,6 +687,72 @@ document.addEventListener('alpine:init', () => {
     },
   }));
 
+  /**
+   * Asistente de ayuda.
+   *
+   * La conversación la guarda el SERVIDOR en la sesión, no este componente ni
+   * el navegador. Aquí solo se pinta lo que llega. Por eso al abrir se pide el
+   * estado: si la persona recarga la página, su conversación sigue donde
+   * estaba, y la de otra persona nunca puede aparecer aquí.
+   */
+  Alpine.data('asistente', (txt = {}) => ({
+    abierto: false,
+    cargado: false,
+    enviando: false,
+    texto: '',
+    error: '',
+    mensajes: [],
+    async alternar() {
+      this.abierto = !this.abierto;
+      if (!this.abierto) { return; }
+      if (!this.cargado) {
+        const j = await CRO.fetchJson('api/asistente');
+        if (j && j.ok) { this.mensajes = j.historial || []; }
+        this.cargado = true;
+      }
+      this.$nextTick(() => { this.$refs.campo && this.$refs.campo.focus(); this.abajo(); });
+    },
+    usarEjemplo(t) { this.texto = t; this.enviar(); },
+    async enviar() {
+      const pregunta = this.texto.trim();
+      if (!pregunta || this.enviando) { return; }
+      this.error = '';
+      this.texto = '';
+      // Se pinta la pregunta antes de que vuelva la respuesta: si se espera,
+      // parece que el botón no hizo nada.
+      this.mensajes.push({ rol: 'persona', texto: pregunta });
+      this.enviando = true;
+      this.$nextTick(() => this.abajo());
+
+      const j = await CRO.fetchJson('api/asistente', {}, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pregunta }),
+      });
+      this.enviando = false;
+      if (j && j.ok) {
+        this.mensajes.push({ rol: 'asistente', texto: j.respuesta });
+      } else {
+        // El servidor manda el motivo ya escrito para leerse; si no llega
+        // ninguno, es que se cayó la red.
+        this.error = (j && j.error) || txt.error;
+        this.mensajes.pop();
+        this.texto = pregunta;
+      }
+      this.$nextTick(() => { this.abajo(); this.$refs.campo && this.$refs.campo.focus(); });
+    },
+    async limpiar() {
+      this.mensajes = [];
+      this.error = '';
+      await CRO.fetchJson('api/asistente/limpiar', {}, { method: 'POST' });
+      this.$nextTick(() => this.$refs.campo && this.$refs.campo.focus());
+    },
+    abajo() {
+      const h = this.$refs.hilo;
+      if (h) { h.scrollTop = h.scrollHeight; }
+    },
+  }));
+
   Alpine.data('paleta', (txt = {}) => ({
     abierta: false, q: '', activo: 0, resultados: [], _t: null,
     acciones: [

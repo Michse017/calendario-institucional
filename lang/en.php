@@ -602,4 +602,65 @@ return [
     'con los botones de cada campo. En Contactos y Aforo el campo propone opciones al escribir, pero puedes poner lo que necesites. Evidencia sigue siendo un enlace.'
         => 'with the buttons on each field. Contacts and Attendance suggest options as you type, but you can write whatever you need. Evidence is still a link only.',
 
+
+    // Asistente de ayuda
+    'Ayuda'
+        => 'Help',
+    'Abrir la ayuda'
+        => 'Open help',
+    'Cerrar la ayuda'
+        => 'Close help',
+    'Ayuda del calendario'
+        => 'Calendar help',
+    'Pregunta cómo se usa la aplicación'
+        => 'Ask how the app works',
+    'Empezar de nuevo'
+        => 'Start over',
+    'Borrar'
+        => 'Clear',
+    'Puedo explicarte cómo funciona el calendario y contarte qué hay registrado. Por ejemplo:'
+        => 'I can explain how the calendar works and tell you what is on it. For example:',
+    '¿Cómo registro un evento nuevo?'
+        => 'How do I add a new event?',
+    '¿Qué significa Pendiente en el seguimiento?'
+        => 'What does Pending mean in follow-up?',
+    '¿Cuántos eventos hay este año?'
+        => 'How many events are there this year?',
+    'Escribe tu pregunta…'
+        => 'Type your question…',
+    'Enviar'
+        => 'Send',
+    'Respuestas generadas por IA: pueden equivocarse.'
+        => 'AI-generated answers: they can be wrong.',
+    'No se pudo enviar. Inténtalo de nuevo.'
+        => 'Could not send. Please try again.',
+    'Pensando…'
+        => 'Thinking…',
+    'Escribe una pregunta.'
+        => 'Type a question.',
+    'La pregunta es muy larga. Resúmela en menos de :n caracteres.'
+        => 'That question is too long. Keep it under :n characters.',
+    'El asistente no está configurado en esta instalación.'
+        => 'The assistant is not configured on this installation.',
+    'Has llegado al límite de preguntas de esta sesión.'
+        => 'You have reached this session\'s question limit.',
+    'Demasiadas preguntas seguidas. Espera unos minutos.'
+        => 'Too many questions in a row. Wait a few minutes.',
+    'El asistente agotó su cuota diaria. Vuelve mañana.'
+        => 'The assistant has used up its daily quota. Try again tomorrow.',
+    'El asistente no está disponible ahora mismo.'
+        => 'The assistant is unavailable right now.',
+    'No puedo responder a eso. Pregúntame sobre el calendario.'
+        => 'I cannot answer that. Ask me about the calendar.',
+
+
+    // Asistente: respuesta cortada
+    'La respuesta salió demasiado larga. Pregúntame algo más concreto.'
+        => 'That answer came out too long. Ask me something more specific.',
+
+
+    // Asistente: limite del proveedor
+    'El asistente recibió muchas preguntas. Espera un momento y vuelve a intentarlo.'
+        => 'The assistant got too many questions. Wait a moment and try again.',
+
 ];

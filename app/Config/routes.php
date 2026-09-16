@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 use App\Controllers\AdminController;
 use App\Controllers\ApiController;
+use App\Controllers\AsistenteController;
 use App\Controllers\AuthController;
 use App\Controllers\CalendarioController;
 use App\Controllers\DemoController;
@@ -29,6 +30,9 @@ $router->get('api/mapa', [ApiController::class, 'mapa']);
 $router->get('api/evento', [ApiController::class, 'evento']);
 $router->post('api/eventos/mover', [ApiController::class, 'mover']);
 $router->get('api/buscar', [ApiController::class, 'buscar']);
+$router->get('api/asistente', [AsistenteController::class, 'estado']);
+$router->post('api/asistente', [AsistenteController::class, 'preguntar']);
+$router->post('api/asistente/limpiar', [AsistenteController::class, 'limpiar']);
 $router->get('api/eventos/repetidos', [ApiController::class, 'repetidos']);
 $router->get('api/eventos/lista', [ApiController::class, 'listaEventos']);
 $router->get('eventos', [EventoController::class, 'lista']);

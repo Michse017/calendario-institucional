@@ -33,6 +33,7 @@
 <?= $contenido ?>
 </main>
 <?php if (empty($sinNav)) { include APP_PATH . '/Views/layout/paleta.php'; } ?>
+<?php if (empty($sinNav) && App\Models\Asistente::configurado()) { include APP_PATH . '/Views/layout/asistente.php'; } ?>
 <script src="<?= h(asset('js/app.js')) ?>"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.14.9/dist/cdn.min.js" integrity="sha384-bKXNU7o2Y3Uk/F2PB6U0bMyGZf6pLDnePM70U7sTE3cXUQ+JLgzrr/kwipEh0p23" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js" integrity="sha384-9Ax3MmS9AClxJyd5/zafcXXjxmwFhZCdsT6HJoJjarvCaAkJlk5QDzjLJm+Wdx5F" crossorigin="anonymous"></script>
