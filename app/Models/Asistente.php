@@ -31,13 +31,22 @@ use RuntimeException;
 final class Asistente
 {
     /**
-     * Modelo con cuota gratuita. No usar los "preview": cambian sin aviso.
+     * Modelos a probar, en orden. El primero que conteste, gana.
      *
-     * Ojo con el listado de la API: sigue ofreciendo modelos antiguos que a las
-     * claves nuevas ya les responden 404 diciendo cuál usar en su lugar. Si algún
-     * día este deja de funcionar, el mensaje del error trae el sustituto.
+     * Hay cadena y no un modelo único porque la capa gratuita se cae a ratos:
+     * devuelve 503 diciendo "mucha demanda, vuelve luego". Con un solo modelo
+     * eso es un asistente roto; con la cadena, se nota una respuesta algo más
+     * lenta y ya. El primero es el estable; los siguientes son el plan B.
+     *
+     * Dos cosas aprendidas peleándose con esto:
+     * - El listado de la API ofrece modelos que a las claves nuevas les
+     *   responden 404 diciendo cuál usar en su lugar (le pasó a gemini-2.5-flash
+     *   y a gemini-2.5-flash-lite).
+     * - Los modelos grandes traen cuotas diarias ridículas en la capa gratuita:
+     *   gemini-3.6-flash daba 20 peticiones AL DÍA. Por eso aquí solo van "lite"
+     *   y "flash", que dan de sobra para un asistente de ayuda.
      */
-    private const MODELO = 'gemini-3.6-flash';
+    private const MODELOS = ['gemini-3.1-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite-preview'];
     private const API = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
     /** Turnos de ida y vuelta que se recuerdan. Más historial no mejora las respuestas y sí engorda cada petición. */
@@ -46,6 +55,18 @@ final class Asistente
     /** Tope por sesión y por hora. Generoso para una persona, insuficiente para un guion. */
     private const LIMITE_SESION = 30;
     private const LIMITE_IP_HORA = 60;
+
+    /**
+     * Tope diario de toda la instalación.
+     *
+     * La capa gratuita también tiene el suyo y es COMPARTIDO por todos: si se
+     * agota, el asistente deja de funcionar para cualquiera hasta el día
+     * siguiente. Este contador va por debajo a propósito, para avisar antes de
+     * chocar y para poder enseñar cuántas quedan. Ojo: los modelos grandes dan
+     * muy pocas al día en la capa gratuita (gemini-3.6-flash daba 20), por eso
+     * aquí se usa uno "lite", que da de sobra.
+     */
+    private const LIMITE_DIA = 250;
 
     private const MAX_PREGUNTA = 500;
 
@@ -225,11 +246,29 @@ final class Asistente
 
     // -------------------------------------------------------------- Límite
 
+    /**
+     * Cuántas preguntas quedan, para poder enseñarlo antes de que se acabe.
+     *
+     * @return array{sesion:int, dia:int}
+     */
+    public static function cupo(): array
+    {
+        $usados = (int) ($_SESSION['asistente_usos'] ?? 0);
+        $hoy = (int) Database::pdo()->query('SELECT COUNT(*) FROM asistente_uso WHERE DATE(creado_en) = CURDATE()')->fetchColumn();
+        return [
+            'sesion' => max(0, self::LIMITE_SESION - $usados),
+            'dia'    => max(0, self::LIMITE_DIA - $hoy),
+        ];
+    }
+
     private static function exigirCupo(string $ip): void
     {
-        $_SESSION['asistente_usos'] = (int) ($_SESSION['asistente_usos'] ?? 0);
-        if ($_SESSION['asistente_usos'] >= self::LIMITE_SESION) {
+        $cupo = self::cupo();
+        if ($cupo['sesion'] <= 0) {
             throw new RuntimeException('Has llegado al límite de preguntas de esta sesión.');
+        }
+        if ($cupo['dia'] <= 0) {
+            throw new RuntimeException('El asistente llegó a su tope de preguntas de hoy. Vuelve mañana.');
         }
         $st = Database::pdo()->prepare(
             'SELECT COUNT(*) FROM asistente_uso WHERE ip = ? AND creado_en > DATE_SUB(NOW(), INTERVAL 1 HOUR)'
@@ -247,8 +286,8 @@ final class Asistente
         Database::pdo()->prepare('INSERT INTO asistente_uso (ip) VALUES (?)')->execute([$ip]);
     }
 
-    /** Las filas viejas no sirven para nada: el límite es por hora. */
-    public static function purgar(int $horas = 24): int
+    /** Las filas viejas no sirven para nada: los límites son por hora y por día. */
+    public static function purgar(int $horas = 48): int
     {
         $st = Database::pdo()->prepare('DELETE FROM asistente_uso WHERE creado_en < DATE_SUB(NOW(), INTERVAL ? HOUR)');
         $st->execute([$horas]);
@@ -257,13 +296,42 @@ final class Asistente
 
     // ------------------------------------------------------------ Llamada
 
+    /**
+     * Recorre la cadena de modelos hasta que uno conteste.
+     *
+     * Solo se pasa al siguiente cuando el fallo es del proveedor y pasajero (se
+     * cayó, no contestó, o ese modelo ya no existe para esta clave). Un rechazo
+     * por seguridad o un límite de cuota NO se reintentan en otro modelo: son
+     * respuestas legítimas y probar en otro sitio sería justo lo contrario de lo
+     * que se quiere.
+     */
     private static function llamar(array $cuerpo): string
     {
-        $ch = curl_init(self::API . self::MODELO . ':generateContent');
+        $ultimo = null;
+        foreach (self::MODELOS as $i => $modelo) {
+            try {
+                return self::pedirA($modelo, $cuerpo);
+            } catch (ProveedorCaido $e) {
+                $ultimo = $e;
+                error_log("asistente: $modelo no responde ({$e->getMessage()}), probando el siguiente");
+            }
+        }
+        error_log('asistente: ningún modelo de la cadena respondió');
+        throw new RuntimeException('El asistente no está disponible ahora mismo.');
+    }
+
+    /** @throws ProveedorCaido cuando merece la pena probar con otro modelo */
+    private static function pedirA(string $modelo, array $cuerpo): string
+    {
+        $ch = curl_init(self::API . $modelo . ':generateContent');
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
+            // Corto a propósito: hay hasta tres modelos que probar, y quien
+            // escribe en un chat no espera minuto y medio. Una respuesta normal
+            // tarda dos o tres segundos; si pasa de doce, ese modelo no está.
+            CURLOPT_TIMEOUT => 12,
+            CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
                 // En la cabecera y no en la URL: así la clave no acaba en el
@@ -278,16 +346,20 @@ final class Asistente
         curl_close($ch);
 
         if ($salida === false) {
-            error_log('asistente: fallo de red hablando con el proveedor: ' . $fallo);
-            throw new RuntimeException('El asistente no está disponible ahora mismo.');
+            throw new ProveedorCaido('sin respuesta: ' . $fallo);
         }
         $j = json_decode((string) $salida, true) ?: [];
 
         if ($codigo === 429) {
             // La capa gratuita limita por minuto Y por día, y el 429 no distingue.
-            // El mensaje sirve para los dos casos sin prometer cuál es.
+            // No se prueba otro modelo: la cuota es de la clave, no del modelo.
             error_log('asistente: 429 del proveedor (cuota por minuto o diaria)');
             throw new RuntimeException('El asistente recibió muchas preguntas. Espera un momento y vuelve a intentarlo.');
+        }
+        // 503 = pico de demanda; 404 = ese modelo ya no existe para esta clave.
+        // Los dos se arreglan probando el siguiente de la cadena.
+        if ($codigo === 503 || $codigo === 404) {
+            throw new ProveedorCaido('HTTP ' . $codigo);
         }
         if ($codigo !== 200) {
             // El motivo va al registro, no a la pantalla: puede traer detalles
@@ -317,4 +389,9 @@ final class Asistente
         }
         return $texto;
     }
+}
+
+/** Fallo pasajero del proveedor: merece la pena probar con otro modelo. Interna del asistente. */
+final class ProveedorCaido extends \RuntimeException
+{
 }

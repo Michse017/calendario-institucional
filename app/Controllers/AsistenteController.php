@@ -45,7 +45,7 @@ final class AsistenteController extends Controller
         // alguien deje la pestaña abierta toda la tarde.
         $_SESSION['asistente_chat'] = array_slice($historial, -Asistente::TURNOS * 2);
 
-        Response::json(['ok' => true, 'respuesta' => $respuesta]);
+        Response::json(['ok' => true, 'respuesta' => $respuesta, 'cupo' => Asistente::cupo()]);
     }
 
     /** POST api/asistente/limpiar → vacía la conversación de ESTA sesión. */
@@ -63,6 +63,7 @@ final class AsistenteController extends Controller
             'ok' => true,
             'disponible' => Asistente::configurado(),
             'historial' => self::historial(),
+            'cupo' => Asistente::cupo(),
         ]);
     }
 

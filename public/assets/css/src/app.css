@@ -519,3 +519,4 @@ span.cro-mx-pie:hover{transform:none;box-shadow:none}
 .cro-asis-enviar:disabled{opacity:.4;cursor:not-allowed}
 .cro-asis-nota{padding:0 1rem .625rem;font-size:.6875rem;color:var(--color-gris)}
 @media (prefers-reduced-motion:reduce){.cro-asis-btn,.cro-asis-ejemplo,.cro-asis-enviar{transition:none}.cro-asis-btn:hover{transform:none}.cro-asis-cargando span{animation:none}}
+.cro-asis-cupo{color:var(--color-estado-ambar);font-weight:600}

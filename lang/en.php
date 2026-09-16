@@ -663,4 +663,11 @@ return [
     'El asistente recibió muchas preguntas. Espera un momento y vuelve a intentarlo.'
         => 'The assistant got too many questions. Wait a moment and try again.',
 
+
+    // Asistente: cupo restante
+    'Quedan :n preguntas.'
+        => 'Questions left: :n.',
+    'El asistente llegó a su tope de preguntas de hoy. Vuelve mañana.'
+        => 'The assistant has hit today\'s question limit. Try again tomorrow.',
+
 ];

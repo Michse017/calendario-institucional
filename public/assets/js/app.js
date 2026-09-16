@@ -702,12 +702,21 @@ document.addEventListener('alpine:init', () => {
     texto: '',
     error: '',
     mensajes: [],
+    // Preguntas que quedan. El tope diario lo comparten todos, porque la cuota
+    // gratuita es de la instalación y no de cada persona.
+    cupo: null,
+    get avisoCupo() {
+      if (!this.cupo) { return ''; }
+      const quedan = Math.min(this.cupo.sesion, this.cupo.dia);
+      if (quedan > 5) { return ''; }   // solo se avisa cuando de verdad se está acabando
+      return String(txt.quedan || '').replace(':n', String(quedan));
+    },
     async alternar() {
       this.abierto = !this.abierto;
       if (!this.abierto) { return; }
       if (!this.cargado) {
         const j = await CRO.fetchJson('api/asistente');
-        if (j && j.ok) { this.mensajes = j.historial || []; }
+        if (j && j.ok) { this.mensajes = j.historial || []; this.cupo = j.cupo || null; }
         this.cargado = true;
       }
       this.$nextTick(() => { this.$refs.campo && this.$refs.campo.focus(); this.abajo(); });
@@ -730,6 +739,7 @@ document.addEventListener('alpine:init', () => {
         body: JSON.stringify({ pregunta }),
       });
       this.enviando = false;
+      if (j && j.cupo) { this.cupo = j.cupo; }
       if (j && j.ok) {
         this.mensajes.push({ rol: 'asistente', texto: j.respuesta });
       } else {

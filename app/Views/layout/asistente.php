@@ -11,6 +11,7 @@
 $txt = [
     'error'     => t('No se pudo enviar. Inténtalo de nuevo.'),
     'pensando'  => t('Pensando…'),
+    'quedan'    => t('Quedan :n preguntas.'),
 ];
 ?>
 <div class="cro-asis" x-data="asistente(<?= h(json_encode($txt)) ?>)" x-cloak>
@@ -67,6 +68,10 @@ $txt = [
       <button type="submit" class="cro-asis-enviar" :disabled="enviando || !texto.trim()"
               title="<?= h(t('Enviar')) ?>">→<span class="sr-only"><?= h(t('Enviar')) ?></span></button>
     </form>
-    <p class="cro-asis-nota"><?= h(t('Respuestas generadas por IA: pueden equivocarse.')) ?></p>
+    <p class="cro-asis-nota">
+      <?= h(t('Respuestas generadas por IA: pueden equivocarse.')) ?>
+      <!-- El contador solo sale cuando quedan pocas: enseñarlo siempre es ruido. -->
+      <span class="cro-asis-cupo" x-show="avisoCupo" x-cloak x-text="avisoCupo"></span>
+    </p>
   </div>
 </div>
