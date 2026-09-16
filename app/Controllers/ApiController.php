@@ -7,6 +7,7 @@ use App\Core\Auth;
 use App\Core\Campos;
 use App\Core\Controller;
 use App\Core\Csrf;
+use App\Core\Normalizador;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\View;
@@ -127,6 +128,41 @@ final class ApiController extends Controller
         Response::json(['ok' => true, 'datos' => Evento::buscar((string) $req->get('q', ''))]);
     }
 
+    /**
+     * GET ?r=api/eventos/repetidos&nombre=...&excluir=N
+     *
+     * Eventos vivos que ya se llaman igual. Solo alimenta un AVISO en el
+     * formulario: nunca impide guardar. Hay repeticiones legítimas (un comité
+     * mensual, un taller que se repite cada semana), así que la decisión es de
+     * quien registra, no del programa.
+     */
+    public function repetidos(Request $req): void
+    {
+        $nombre = Normalizador::limpiar((string) $req->get('nombre', ''));
+        if (mb_strlen($nombre) < 3) {
+            Response::json(['ok' => true, 'datos' => []]);
+        }
+        Response::json(['ok' => true, 'datos' => Evento::mismoNombre($nombre, $req->int('excluir'))]);
+    }
+
+    /**
+     * GET ?r=api/eventos/lista&q=...&[filtros] → filas ya pintadas + totales.
+     *
+     * Devuelve HTML y no datos sueltos a propósito: la fila se pinta en
+     * eventos/_filas.php, el MISMO parcial que usa la página completa, así que
+     * el buscador en vivo y la vista normal no pueden quedar distintos.
+     */
+    public function listaEventos(Request $req): void
+    {
+        $lista = Evento::listar(self::filtros($req), max(1, $req->int('pagina', 1)), 50);
+        Response::json([
+            'ok'      => true,
+            'html'    => View::parcial('eventos/_filas', ['filas' => $lista['filas']]),
+            'total'   => (int) $lista['total'],
+            'paginas' => (int) $lista['paginas'],
+        ]);
+    }
+
     /** GET ?r=api/mapa&anio=2026&modo=activos|inicio&cancelados=1&[filtros] → mapa de calor por día */
     public function mapa(Request $req): void
     {
@@ -163,6 +199,8 @@ final class ApiController extends Controller
         return array_map(static fn(array $p): array => [
             'id'              => (int) $p['id'],
             'nombre'          => $p['nombre'],
+            // La fecha cruda, además del rango legible: el calendario la usa para saltar hasta el evento.
+            'fecha_inicio'    => $p['fecha_inicio'],
             'rango'           => rango_fechas($p['fecha_inicio'], $p['fecha_fin']),
             'area'            => $p['area'],
             'ciudad'          => (string) ($p['ciudad'] ?? ''),

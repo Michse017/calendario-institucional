@@ -1,8 +1,21 @@
 <?php
 use App\Core\Campos;
+use App\Core\Idioma;
 use App\Core\View;
 
 $v = static fn(string $k): string => (string) ($valores[$k] ?? '');
+// Lo que pinta el JavaScript del formulario viaja ya traducido en su configuración.
+$cfgForm = [
+    'inicio' => $v('fecha_inicio'), 'fin' => $v('fecha_fin'),
+    'id'     => (int) ($valores['id'] ?? 0),
+    'idioma' => Idioma::actual(),
+    'txt'    => [
+        'el'  => t('el'), 'del' => t('del'), 'al' => t('al'),
+        'repetidoUno'    => t('Ya existe un evento con este mismo nombre:'),
+        'repetidoVarios' => t('Ya existen :n eventos con este mismo nombre:'),
+        'sinArea'        => t('Sin área'),
+    ],
+];
 $err = static fn(string $k): string => isset($errores[$k]) ? '<p class="error-campo" id="err-' . $k . '">' . h(t($errores[$k])) . '</p>' : '';
 $aria = static fn(string $k): string => isset($errores[$k]) ? ' aria-describedby="err-' . $k . '"' : '';
 $desc = static fn(string $k): string => isset(Campos::DESCRIPCION[$k])
@@ -24,7 +37,7 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
     ]);
 };
 ?>
-<form method="post" action="<?= h($accion) ?>" class="mx-auto max-w-4xl" x-data="formularioEvento(<?= h(json_encode(['inicio' => $v('fecha_inicio'), 'fin' => $v('fecha_fin')])) ?>)" @submit="enviando = true">
+<form method="post" action="<?= h($accion) ?>" class="mx-auto max-w-4xl" x-data="formularioEvento(<?= h(json_encode($cfgForm)) ?>)" @submit="enviando = true">
   <?= csrf_campo() ?>
   <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
     <div>
@@ -53,8 +66,20 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
       <div class="md:col-span-6">
         <label class="label mb-0.5" for="nombre"><?= h(t(Campos::ETIQUETA['nombre'])) ?></label>
         <?= $desc('nombre') ?>
-        <input class="input" id="nombre" name="nombre" value="<?= h($v('nombre')) ?>" maxlength="200" required autofocus<?= $aria('nombre') ?>>
+        <input class="input" id="nombre" name="nombre" value="<?= h($v('nombre')) ?>" maxlength="200" required autofocus @input.debounce.500ms="mirarRepetidos($event.target.value)"<?= $aria('nombre') ?>>
         <?= $err('nombre') ?>
+        <!-- Aviso de nombre repetido: informa, no impide. El porqué está
+             explicado en Evento::mismoNombre(). -->
+        <div class="cro-repetido" x-show="repetidos.length" x-cloak role="status">
+          <p class="cro-repetido-tit" x-text="tituloRepetidos()"></p>
+          <ul class="cro-repetido-lista">
+            <template x-for="r in repetidos" :key="r.id">
+              <li><span x-text="cuando(r)"></span> · <span x-text="r.area || txt.sinArea"></span></li>
+            </template>
+          </ul>
+          <p class="cro-repetido-choque" x-show="chocaFecha" x-cloak><?= h(t('Uno de ellos cae en las mismas fechas que estás poniendo.')) ?></p>
+          <p class="cro-repetido-pie"><?= h(t('Si el tuyo es distinto, sigue adelante sin problema. Esto es solo un aviso.')) ?></p>
+        </div>
       </div>
       <div class="md:col-span-2">
         <label class="label mb-0.5" for="fecha_inicio"><?= h(t(Campos::ETIQUETA['fecha_inicio'])) ?></label>

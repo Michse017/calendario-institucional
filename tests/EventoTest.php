@@ -172,3 +172,19 @@ function test_evento_listar_orden(): void
         assertEq([], Evento::todos(['anio' => 2033, 'area_id' => -1]), 'un usuario sin área no ve nada con Solo mi área');
     });
 }
+
+function test_evento_mismo_nombre_avisa_sin_impedir_y_excluye_el_propio(): void
+{
+    conDb(function (PDO $pdo): void {
+        $a = Evento::crear(datosEvento(['nombre' => 'Xcomité mensual']), 7);
+        $b = Evento::crear(datosEvento(['nombre' => 'Xcomité mensual', 'fecha_inicio' => '2026-10-05', 'fecha_fin' => '2026-10-05']), 7);
+        $ids = static fn(array $r): array => array_map('intval', array_column($r, 'id'));
+        // Espacios sobrantes y mayúsculas no cambian el resultado (limpiar + cotejamiento _ci).
+        assertEq([$a, $b], $ids(Evento::mismoNombre('  xcomité   MENSUAL ')), 'los dos vivos, del más cercano al más lejano');
+        assertEq([$b], $ids(Evento::mismoNombre('Xcomité mensual', $a)), 'al editar se excluye el propio evento');
+        assertEq([], Evento::mismoNombre('   '), 'con nombre vacío no busca');
+        assertEq([], Evento::mismoNombre('Xcomité'), 'es igualdad exacta, no "contiene"');
+        Evento::eliminar($b, 7, 'prueba de duplicados');
+        assertEq([$a], $ids(Evento::mismoNombre('Xcomité mensual')), 'los eliminados no cuentan');
+    });
+}

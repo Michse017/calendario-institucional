@@ -29,6 +29,8 @@ $router->get('api/mapa', [ApiController::class, 'mapa']);
 $router->get('api/evento', [ApiController::class, 'evento']);
 $router->post('api/eventos/mover', [ApiController::class, 'mover']);
 $router->get('api/buscar', [ApiController::class, 'buscar']);
+$router->get('api/eventos/repetidos', [ApiController::class, 'repetidos']);
+$router->get('api/eventos/lista', [ApiController::class, 'listaEventos']);
 $router->get('eventos', [EventoController::class, 'lista']);
 $router->get('eventos/exportar', [EventoController::class, 'exportar']);
 $router->get('eventos/nuevo', [EventoController::class, 'nuevo']);

@@ -329,6 +329,33 @@ final class Evento
     }
 
     /**
+     * Eventos vivos que se llaman EXACTAMENTE igual que $nombre.
+     *
+     * Sirve para avisar de un posible duplicado, nunca para impedirlo: hay
+     * eventos que se repiten a propósito (un comité mensual, un taller
+     * semanal). La comparación la resuelve el cotejamiento utf8mb4_unicode_ci
+     * de la columna, que ya ignora mayúsculas y tildes; aquí solo se limpian
+     * los espacios sobrantes.
+     */
+    public static function mismoNombre(string $nombre, ?int $excluir = null): array
+    {
+        $nombre = Normalizador::limpiar($nombre);
+        if ($nombre === '') {
+            return [];
+        }
+        $sql = 'SELECT e.id, e.nombre, e.fecha_inicio, e.fecha_fin, e.estado, ar.valor AS area '
+            . self::FROM_CORTO . ' WHERE e.eliminado_en IS NULL AND e.nombre = ?';
+        $p = [$nombre];
+        if ($excluir) {
+            $sql .= ' AND e.id <> ?';
+            $p[] = $excluir;
+        }
+        $st = Database::pdo()->prepare($sql . ' ORDER BY e.fecha_inicio LIMIT 10');
+        $st->execute($p);
+        return $st->fetchAll();
+    }
+
+    /**
      * Mapa de calor por día de un año, con los mismos filtros que el calendario.
      * Cuenta los eventos ACTIVOS cada día (los que empiezan antes y terminan después también cuentan),
      * que es lo que muestra la carga real del equipo; con $modo='inicio' cuenta solo el día de arranque.

@@ -489,4 +489,17 @@ return [
     'abril' => 'April', 'mayo' => 'May', 'junio' => 'June',
     'julio' => 'July', 'agosto' => 'August', 'septiembre' => 'September',
     'octubre' => 'October', 'noviembre' => 'November', 'diciembre' => 'December',
+
+    // ------------------------------------------- Calendario: semana y resaltado
+    'Todo el día'                  => 'All day',
+
+    // --------------------------------------------- Aviso de nombre repetido
+    'el'  => 'on', 'del' => 'from', 'al' => 'to',
+    'Ya existe un evento con este mismo nombre:'   => 'There is already an event with this exact name:',
+    'Ya existen :n eventos con este mismo nombre:' => 'There are already :n events with this exact name:',
+    'Sin área'                     => 'No department',
+    'Uno de ellos cae en las mismas fechas que estás poniendo.'
+        => 'One of them falls on the same dates you are entering.',
+    'Si el tuyo es distinto, sigue adelante sin problema. Esto es solo un aviso.'
+        => 'If yours is a different one, go ahead. This is only a heads-up.',
 ];
