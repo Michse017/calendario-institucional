@@ -56,6 +56,10 @@ This application puts all three answers on a single screen.
 - **Printable user report** from the admin area: a letter-size page with
   headline figures, the breakdown by department and the full list, ready to
   print or save as PDF from the browser.
+- **A help assistant that can actually query the data.** Ask it how a field
+  works, or ask it which department has the best completion rate and it runs
+  the query and answers with the real figure. It is scoped to the calendar and
+  declines everything else. Optional: with no API key the button never appears.
 - **Small touches that add up:** the week view reads in whole hours with a
   "now" line, today is ringed in the heat map, the open event stays
   highlighted in the grid, and days and events react to the mouse.

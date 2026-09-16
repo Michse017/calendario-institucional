@@ -81,6 +81,14 @@ checks it on every request that changes something. The comparison uses
 **Server-side validation.** `App\Core\Validator` validates the whole event on
 the server. What the browser checks is convenience, not security.
 
+**Questions leave the building.** The help assistant sends the question, the
+conversation so far, and a summary of the installation to Google's Gemini API.
+That is the deal with any hosted model and it should be stated plainly rather
+than buried: do not type anything into it you would not send to a third party.
+Everything else stays here — the assistant never stores what people write. The
+`asistente_uso` table holds a timestamp and an IP for the rate limit, nothing
+else. An installation with no API key has no assistant at all.
+
 ## Headers
 
 `App\Core\Seguridad::cabeceras()` is applied at the entry point, before any
@@ -145,6 +153,35 @@ recorded here rather than glossed over.
 and because Alpine shows and hides elements by touching the `style` attribute.
 The risk of an injected style is considerably smaller than that of a script.
 
+## The assistant's blast radius
+
+A model that can query a database is a new kind of surface, so it is worth
+saying exactly how far it reaches.
+
+**It cannot write SQL.** It picks from three functions — count, break down,
+search — and passes arguments. `App\Models\AsistenteDatos` writes the query.
+This is deliberately *not* text-to-SQL: letting a model compose queries hands
+it the whole database, and no amount of prompt wording takes that back.
+
+**Arguments are checked against the catalogue before they reach the database**,
+and every query is parameterised. A value that does not exist is not searched
+for — it is dropped and reported. That is both safer and more honest: answering
+"0 events" for a department nobody ever created lets the reader believe it
+exists and is empty.
+
+**Reads only, and capped.** The three functions only `SELECT`, they only touch
+events and catalogue values, they never see users or password hashes, and every
+result is limited to 25 rows. Three query rounds per question stop a strange
+question from becoming a loop that burns quota.
+
+**Scope is defended twice**, because either layer alone is weak: the provider's
+safety filters, and a system instruction that fixes the topic and refuses to
+take new instructions from inside a question. Tested against off-topic
+questions, harmful requests and four jailbreak attempts.
+
+**None of this makes it trustworthy with secrets.** It is a help assistant over
+public demo data, not an authorisation boundary.
+
 ## Permissions
 
 The rule lives in a single place, `Auth::puedeEditar()`: an administrator can do
@@ -174,5 +211,8 @@ It is worth being explicit about the limits:
   sign-on it would make sense; here it would be noise.
 - There is no password recovery by email. An administrator resets it from the
   panel, which is the reasonable arrangement in a small organisation.
-- There is no rate limiting beyond sign-in. The application is meant for tens of
-  people, not for open traffic.
+- There is no rate limiting beyond sign-in and the assistant. The application is
+  meant for tens of people, not for open traffic.
+- The assistant's answers are not verified. The figures it quotes come from the
+  database, but the sentence wrapped around them is generated, and generated
+  text can be wrong. The panel says so under the input box.

@@ -34,6 +34,7 @@ database is empty. Restarting the container deletes nothing.
 | `DB_SSL_CA` | empty | Path to the certificate authority. Empty uses the system store, which is what switches encryption on |
 | `TRUST_PROXY` | `true` | There is a load balancer in front, so the real address arrives in a header |
 | `DEMO_RESET_TOKEN` | a long random string | Authorises the nightly reset |
+| `GEMINI_API_KEY` | a free key from [AI Studio](https://aistudio.google.com/apikey) | Turns on the help assistant. Leave it out and the button never appears |
 
 To generate the token:
 

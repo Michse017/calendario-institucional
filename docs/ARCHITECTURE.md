@@ -255,6 +255,59 @@ sequenceDiagram
 The error message is deliberately identical in all three cases. Saying "that
 address does not exist" hands whoever is probing a list of valid accounts.
 
+## How the help assistant answers with real figures
+
+The interesting part is not that it talks; it is that it can read the database
+without ever being handed the database. It picks from a closed menu of three
+functions and the server writes the SQL.
+
+```mermaid
+sequenceDiagram
+    participant P as Person
+    participant C as AsistenteController
+    participant M as Asistente
+    participant G as Gemini
+    participant D as AsistenteDatos
+    participant B as Database
+
+    P->>C: "which department has the best completion rate?"
+    C->>M: question + this session's history
+    Note over M: builds the context:<br/>how the app works, catalogues,<br/>the asker's role and department
+    M->>G: question + context + the menu of 3 functions
+    G-->>M: resumen_por(dimension: "area")
+    Note over M,D: the model chose a function.<br/>It never writes SQL.
+    M->>D: run it
+    D->>D: check every argument<br/>against the catalogue
+    D->>B: parameterised SELECT, 25 rows max
+    B-->>D: rows
+    D->>D: work out the percentages here,<br/>not in the model
+    D-->>M: figures, with the filters<br/>that were actually applied
+    M->>G: same conversation + the figures
+    G-->>M: "Programación, with 86.4%"
+    M-->>C: answer
+    C->>C: store the turn in the session
+    C-->>P: answer
+```
+
+Four decisions hold this up:
+
+- **A closed menu, not text-to-SQL.** Letting a model compose queries hands it
+  the whole database. Three functions with typed arguments cannot reach past
+  what they were written to read.
+- **The percentages are worked out in PHP.** Language models are unreliable at
+  arithmetic. Give one two numbers and ask for a rate and it will sometimes be
+  wrong. It is handed the rate already computed and only reads it out.
+- **`eventos` is queried directly, not the `bi_` views.** Deployment only
+  applies `001_schema.sql`, so those views do not exist in the demo. Depending
+  on them would have been a failure that shows up only in production.
+- **The conversation lives in the PHP session.** Not in the browser, not in the
+  database. Two people are two server sessions, so their conversations cannot
+  meet; and signing out takes the conversation with it.
+
+At most three query rounds per question. Beyond that the assistant says the
+question needs too many lookups and asks for something narrower, which is
+cheaper than letting a strange question spin.
+
 ## Data model
 
 Five tables. The decision that explains the whole thing is the first one: every
