@@ -148,13 +148,34 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
       <div x-data="{ v: <?= h(json_encode($v($t))) ?> }">
         <div class="flex items-center justify-between">
           <label class="label mb-0.5" for="<?= $t ?>"><?= h(t(Campos::ETIQUETA[$t])) ?></label>
-          <button type="button" class="cro-atajo mb-0.5" :class="{ 'cro-atajo-activo': v === 'N/A', 'cro-atajo-pista': !v }" title="<?= h(t('Marcar este campo como «no aplica»')) ?>" @click="v = 'N/A'">N/A</button>
+          <span class="mb-0.5 flex gap-2">
+            <?php if ($t !== 'objetivo'): ?>
+            <button type="button" class="cro-atajo" :class="{ 'cro-atajo-activo': v === 'Pendiente', 'cro-atajo-pista': !v }" title="<?= h(t('Todavía no se sabe')) ?>" @click="v = 'Pendiente'"><?= h(t('Pendiente')) ?></button>
+            <?php endif; ?>
+            <button type="button" class="cro-atajo<?= $t !== 'objetivo' ? ' cro-atajo-tarde' : '' ?>" :class="{ 'cro-atajo-activo': v === 'N/A', 'cro-atajo-pista': !v }" title="<?= h(t('Marcar este campo como «no aplica»')) ?>" @click="v = 'N/A'">N/A</button>
+          </span>
         </div>
         <?= $desc($t) ?>
         <textarea class="input" id="<?= $t ?>" name="<?= $t ?>" rows="<?= $filas ?>" x-model="v" maxlength="5000"<?= $autoNa ? ' @blur="if (v.trim() === \'\') v = \'N/A\'"' : ' required' ?><?= $aria($t) ?>></textarea>
         <?= $err($t) ?>
       </div>
       <?php endforeach; ?>
+      <?php
+      /**
+       * Sugerencias del desplegable. Es un <datalist>: propone, no obliga.
+       * Se puede escribir cualquier otra cosa encima.
+       * Evidencia no lleva: sigue siendo solo un enlace.
+       */
+      $SUGERIDO = [
+          'contactos_url' => ['N/A', 'Pendiente', t('Pendiente (enlace al listado de contactos)'), t('Pendiente de consolidar al finalizar el evento')],
+          'reuniones'     => ['N/A', 'Pendiente', t('Pendiente de consolidar al finalizar el evento'), t('Pendiente de confirmar con el organizador')],
+      ];
+      $PISTA = [
+          'contactos_url' => t('Enlace, los contactos, N/A o en qué va'),
+          'evidencia_url' => t('https://…, N/A o Pendiente'),
+          'reuniones'     => t('Número, N/A o en qué va'),
+      ];
+      ?>
       <?php foreach (['contactos_url', 'evidencia_url', 'reuniones'] as $t): ?>
       <div x-data="{ v: <?= h(json_encode($v($t))) ?> }">
         <div class="flex items-center justify-between">
@@ -165,7 +186,10 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
           </span>
         </div>
         <?= $desc($t) ?>
-        <input class="input" id="<?= $t ?>" name="<?= $t ?>" x-model="v" placeholder="<?= h($t === 'reuniones' ? t('Número, N/A o Pendiente') : t('https://…, N/A o Pendiente')) ?>" required<?= $aria($t) ?>>
+        <input class="input" id="<?= $t ?>" name="<?= $t ?>" x-model="v" placeholder="<?= h($PISTA[$t]) ?>" maxlength="<?= $t === 'reuniones' ? 60 : 500 ?>" autocomplete="off"<?= isset($SUGERIDO[$t]) ? ' list="sug-' . $t . '"' : '' ?> required<?= $aria($t) ?>>
+        <?php if (isset($SUGERIDO[$t])): ?>
+        <datalist id="sug-<?= $t ?>"><?php foreach ($SUGERIDO[$t] as $s): ?><option value="<?= h($s) ?>"></option><?php endforeach; ?></datalist>
+        <?php endif; ?>
         <?= $err($t) ?>
       </div>
       <?php endforeach; ?>

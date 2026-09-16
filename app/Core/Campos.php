@@ -55,7 +55,7 @@ final class Campos
         'nombre' => 'Nombre del evento', 'fecha_inicio' => 'Fecha inicio', 'fecha_fin' => 'Fecha fin', 'estado' => 'Estado',
         'tipo_accion' => 'Tipo de evento', 'segmento' => 'Público', 'area' => 'Área responsable', 'linea_estrategica' => 'Línea del plan cultural',
         'pais' => 'País', 'ciudad' => 'Ciudad', 'mercado' => 'Procedencia del público', 'organizador' => 'Organizador',
-        'objetivo' => 'Objetivo', 'resultados' => 'Resultados', 'contactos_url' => 'Contactos (enlace)', 'reuniones' => 'Aforo estimado',
+        'objetivo' => 'Objetivo', 'resultados' => 'Resultados', 'contactos_url' => 'Contactos', 'reuniones' => 'Aforo estimado',
         'alianzas' => 'Alianzas', 'observaciones' => 'Observaciones', 'evidencia_url' => 'Evidencia (enlace)',
         'tipo_accion_otro' => 'Tipo de evento · cuál', 'segmento_otro' => 'Público · cuál',
     ];
@@ -78,13 +78,22 @@ final class Campos
         'resultados'        => 'Resultados esperados o los que ya se obtuvieron, según en qué va el evento. Si lo dejas vacío se guarda como N/A.',
         'alianzas'          => 'Con quién se hizo alianza para este evento. Si no hubo ninguna, escribe N/A con el botón.',
         'observaciones'     => 'Cualquier nota útil sobre el evento. Si lo dejas vacío se guarda como N/A.',
-        'contactos_url'     => 'Enlace al listado de contactos conseguidos.',
-        'reuniones'         => 'Número aproximado de asistentes.',
+        'contactos_url'     => 'Enlace al listado, los contactos escritos, o en qué va. Si no aplica, N/A.',
+        'reuniones'         => 'Número aproximado de asistentes. Si todavía no se sabe, escribe en qué va.',
         'evidencia_url'     => 'Enlace a fotos, informes o soportes.',
     ];
 
     public const TEXTOS = ['objetivo', 'resultados', 'alianzas', 'observaciones'];
-    public const ENLACES = ['contactos_url', 'evidencia_url'];
+
+    /**
+     * Campos que SOLO admiten un enlace (además de N/A y Pendiente).
+     * Contactos salió de aquí: ahí también vale escribir los contactos o en qué
+     * va el asunto. Evidencia se queda como enlace a propósito.
+     */
+    public const ENLACES = ['evidencia_url'];
+
+    /** Texto libre corto: un enlace, varios, un dato escrito, o en qué va. */
+    public const TEXTO_CORTO = ['contactos_url'];
 
     /** Estados manuales que se eligen en el formulario. */
     public const ESTADOS_FORMULARIO = ['no_realizado' => 'No realizado', 'en_ejecucion' => 'En ejecución', 'realizado' => 'Realizado'];

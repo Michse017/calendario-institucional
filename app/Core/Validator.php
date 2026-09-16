@@ -120,17 +120,42 @@ final class Validator
             }
         }
 
+        // Texto libre corto (hoy solo Contactos). Cabe un enlace, varios, los
+        // contactos escritos a mano, o "Pendiente de consolidar al finalizar el
+        // evento". Quien pinta la ficha decide si algo es un enlace de verdad:
+        // aquí ya no se puede dar por hecho.
+        foreach (Campos::TEXTO_CORTO as $c) {
+            $v = Normalizador::limpiar((string) ($in[$c] ?? ''));
+            if ($v === '') {
+                $e[$c] = 'Obligatorio: escribe el dato o el enlace, o marca N/A o Pendiente.';
+            } elseif ($v === 'N/A') {
+                $d[$c] = 'N/A';
+            } elseif (self::esPendiente($v)) {
+                $d[$c] = 'Pendiente';
+            } elseif (mb_strlen($v) > 500) {
+                $e[$c] = 'Máximo 500 caracteres.';
+            } else {
+                $d[$c] = $v;
+            }
+        }
+
         $r = Normalizador::limpiar((string) ($in['reuniones'] ?? ''));
         if ($r === '') {
-            $e['reuniones'] = 'Obligatorio: número de reuniones, N/A o Pendiente.';
+            $e['reuniones'] = 'Obligatorio: el número, N/A, o en qué va.';
         } elseif ($r === 'N/A') {
             $d['reuniones'] = 'N/A';
         } elseif (self::esPendiente($r)) {
             $d['reuniones'] = 'Pendiente';
         } elseif (preg_match('/^\d{1,6}$/', $r)) {
             $d['reuniones'] = (string) (int) $r;
+        } elseif (mb_strlen($r) > 60) {
+            // La columna es varchar(60): mejor decirlo que truncar en silencio.
+            $e['reuniones'] = 'Máximo 60 caracteres. Si hay que explicar más, usa Observaciones.';
         } else {
-            $e['reuniones'] = 'Debe ser un número entero (0 o más), N/A o Pendiente.';
+            // Ya no solo un número: vale decir en qué va ("Pendiente de
+            // consolidar al finalizar el evento"). A cambio, el día que se quiera
+            // sumar aforos habrá que contar solo las filas numéricas.
+            $d['reuniones'] = $r;
         }
 
         return ['ok' => $e === [], 'errores' => $e, 'datos' => $d];

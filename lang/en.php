@@ -502,4 +502,29 @@ return [
         => 'One of them falls on the same dates you are entering.',
     'Si el tuyo es distinto, sigue adelante sin problema. Esto es solo un aviso.'
         => 'If yours is a different one, go ahead. This is only a heads-up.',
+
+    // Seguimiento: Pendiente en los textos y texto libre en Contactos y Aforo
+    'Enlace al listado, los contactos escritos, o en qué va. Si no aplica, N/A.'
+        => 'A link to the list, the contacts written out, or its status. N/A if it does not apply.',
+    'Número aproximado de asistentes. Si todavía no se sabe, escribe en qué va.'
+        => 'Approximate number of attendees. If not known yet, write its status.',
+    'Obligatorio: escribe el dato o el enlace, o marca N/A o Pendiente.'
+        => 'Required: write the data or the link, or mark N/A or Pending.',
+    'Máximo 500 caracteres.'
+        => 'Maximum 500 characters.',
+    'Obligatorio: el número, N/A, o en qué va.'
+        => 'Required: the number, N/A, or its status.',
+    'Máximo 60 caracteres. Si hay que explicar más, usa Observaciones.'
+        => 'Maximum 60 characters. If more detail is needed, use Notes.',
+    'Pendiente (enlace al listado de contactos)'
+        => 'Pending (link to the contact list)',
+    'Pendiente de consolidar al finalizar el evento'
+        => 'To be consolidated once the event ends',
+    'Pendiente de confirmar con el organizador'
+        => 'To be confirmed with the organizer',
+    'Enlace, los contactos, N/A o en qué va'
+        => 'A link, the contacts, N/A or its status',
+    'Número, N/A o en qué va'
+        => 'A number, N/A or its status',
+
 ];

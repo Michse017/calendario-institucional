@@ -7,7 +7,13 @@ $enlace = static function (string $v): string {
     if ($v === 'N/A' || $v === 'Pendiente') {
         return '<span class="text-gris">' . h($v) . '</span>';
     }
-    return '<a class="font-semibold text-azul hover:underline" target="_blank" rel="noopener" href="' . h($v) . '">' . h(t('Abrir enlace')) . ' ↗</a>';
+    // Solo se convierte en enlace lo que DE VERDAD es http(s). Contactos admite
+    // texto libre, y construir un href con cualquier cosa dejaría pulsable un
+    // 'javascript:...'. Lo que no sea enlace se muestra tal cual.
+    if (preg_match('~^https?://[^\s]+$~i', $v) && filter_var($v, FILTER_VALIDATE_URL) !== false) {
+        return '<a class="font-semibold text-azul hover:underline" target="_blank" rel="noopener" href="' . h($v) . '">' . h(t('Abrir enlace')) . ' ↗</a>';
+    }
+    return h($v);
 };
 ?>
 <div class="h-1.5" style="background:<?= h($cancelado ? Campos::ESTADO_COLOR['cancelado'] : $color) ?>"></div>

@@ -73,18 +73,29 @@ function test_validator_fechas(): void
 
 function test_validator_enlaces_y_reuniones(): void
 {
-    $r = Validator::evento(payloadValido(['contactos_url' => 'drive.google.com/x']));
-    assertTrue(isset($r['errores']['contactos_url']), 'sin esquema http');
-    $r = Validator::evento(payloadValido(['contactos_url' => 'javascript:alert(1)']));
-    assertTrue(isset($r['errores']['contactos_url']));
+    // Evidencia sigue siendo SOLO un enlace (o N/A / Pendiente).
+    $r = Validator::evento(payloadValido(['evidencia_url' => 'drive.google.com/x']));
+    assertTrue(isset($r['errores']['evidencia_url']), 'sin esquema http');
+    $r = Validator::evento(payloadValido(['evidencia_url' => 'javascript:alert(1)']));
+    assertTrue(isset($r['errores']['evidencia_url']));
     $r = Validator::evento(payloadValido(['evidencia_url' => 'no aplica']));
     assertEq('N/A', $r['datos']['evidencia_url']);
-    $r = Validator::evento(payloadValido(['reuniones' => 'muchas']));
-    assertTrue(isset($r['errores']['reuniones']));
+    // Contactos admite texto libre: enlaces sin esquema, nombres, o en qué va.
+    $r = Validator::evento(payloadValido(['contactos_url' => 'Ana Torres 300 123 4567; drive.google.com/x']));
+    assertEq('Ana Torres 300 123 4567; drive.google.com/x', $r['datos']['contactos_url']);
+    $r = Validator::evento(payloadValido(['contactos_url' => '  pendiente ']));
+    assertEq('Pendiente', $r['datos']['contactos_url']);
+    $r = Validator::evento(payloadValido(['contactos_url' => str_repeat('x', 501)]));
+    assertTrue(isset($r['errores']['contactos_url']), 'máximo 500');
+    // Aforo: número, N/A, Pendiente, o un texto corto que diga en qué va.
+    $r = Validator::evento(payloadValido(['reuniones' => ' 12 ']));
+    assertEq('12', $r['datos']['reuniones']);
     $r = Validator::evento(payloadValido(['reuniones' => 'N/A']));
     assertEq('N/A', $r['datos']['reuniones']);
-    $r = Validator::evento(payloadValido(['reuniones' => '-3']));
-    assertTrue(isset($r['errores']['reuniones']));
+    $r = Validator::evento(payloadValido(['reuniones' => 'Pendiente de consolidar al finalizar el evento']));
+    assertEq('Pendiente de consolidar al finalizar el evento', $r['datos']['reuniones']);
+    $r = Validator::evento(payloadValido(['reuniones' => str_repeat('a', 61)]));
+    assertTrue(isset($r['errores']['reuniones']), 'máximo 60: la columna es varchar(60)');
 }
 
 function test_validator_estado_y_longitudes(): void
