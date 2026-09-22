@@ -317,6 +317,7 @@ catalogue lives in **a single table**, told apart by its `tipo` column.
 erDiagram
     CATALOGO_VALORES ||--o{ USUARIOS : "area_id"
     CATALOGO_VALORES ||--o{ EVENTOS : "eight different columns"
+    USUARIOS ||--o{ EVENTOS : "leads (dueno_id)"
     USUARIOS ||--o{ EVENTOS_HISTORIAL : "who did it"
     EVENTOS ||--o{ EVENTOS_HISTORIAL : "on which event"
     EVENTOS ||--o{ EVENTO_MERCADOS : "audience origins"
@@ -353,6 +354,8 @@ erDiagram
         int area_id FK
         int tipo_accion_id FK
         int segmento_id FK
+        int dueno_id FK "lead: usuarios.id"
+        bool requiere_cubrimiento "needs coverage"
     }
     EVENTOS_HISTORIAL {
         int id PK
@@ -387,6 +390,15 @@ Why it looks like this:
   correlated subquery. Rows are never deleted here either: an origin that is
   removed from an event is flagged inactive, so an installation whose
   database user has no DELETE grant works exactly the same.
+- **The lead is a column, not a table.** `eventos.dueno_id` names who answers
+  for the event and `requiere_cubrimiento` says whether someone from the
+  department has to be there. There is no assignment table on purpose: who
+  goes is decided on the day, so everything that counts people (the
+  availability lookup, the timeline, the coverage charts) derives from one
+  rule, "committed = leading an event that needs coverage", instead of from a
+  roster that would go stale. The lead must belong to the event's department
+  (or be an administrator); the form offers only those people and the server
+  checks it again on save.
 - **`cambios` is a JSON column.** It stores only the fields that changed. It is
   the reason MySQL 8 or MariaDB 10.5 upwards is required.
 

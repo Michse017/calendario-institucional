@@ -93,6 +93,21 @@ curl -X POST -H "X-Demo-Token: $TOKEN" https://THE-DEMO/?r=demo/reiniciar
 It answers `{"ok":true,...}`. With no token, or the wrong one, it answers 403
 and touches nothing. Outside demo mode the route returns 404.
 
+## Schema upgrades
+
+`bin/aplicar_esquema.php` runs on every container start. Besides applying
+`sql/001_schema.sql` (all `CREATE TABLE IF NOT EXISTS`, so it never touches an
+existing table), it looks in `information_schema` for the columns added after
+the first release and alters the table only when they are missing. An
+already-deployed database therefore picks them up on the next deploy with no
+manual step, and running the script twice changes nothing. The current ones
+are `eventos.dueno_id` (back-filled with the event's creator) and
+`eventos.requiere_cubrimiento`.
+
+The nightly reset also creates any sample account that is missing (looked up
+by e-mail), so a demo deployed before the staff accounts existed gets them at
+the next reset without wiping the ones it had.
+
 ## Checks after deploying
 
 1. Open the address in a private window: it should redirect to the sign-in

@@ -37,6 +37,25 @@ This application puts all three answers on a single screen.
   department, status, type and audience.
 - **Workload matrix by department and month** on the dashboard, to spot at a
   glance whether a department has crammed its year into two months.
+- **A lead and a coverage flag on every event.** Each event names who answers
+  for it (someone from its department, not necessarily whoever created it) and
+  whether someone from the department has to be present that day. Who goes is
+  decided on the day itself: nobody gets assigned, so an event without people
+  is never an alarm, just a quiet ⚑ mark. Both can be changed from the event
+  card without opening the form, and every change lands in the audit trail.
+- **Availability lookup.** Pick a date range and see who is committed (leading
+  an event that needs coverage) and who is free; pick a person and see their
+  committed days month by month, each day linked to its event.
+- **Timeline view** in the calendar: one lane per department with its events
+  as bars, and one row per person with what they lead, day by day. Hovering an
+  event lights up its bars in every row, so it is clear whose mark is whose.
+- **Coverage charts** on the dashboard: leads with the most events needing
+  coverage, coverage by department, who leads the most, and person-days per
+  week with the busiest week in amber.
+- **People filter** in the calendar and the event list: type a name, press
+  Enter, and the calendar keeps only what that person leads; hovering their
+  chip lists their events of the year. The heat map gains an "Availability"
+  mode that counts people committed per day instead of events.
 - **Audit trail** recording who did what, which field changed and to what value.
 - **Recycle bin with a mandatory reason.** Deleting is a soft delete: you have
   to say why, and an administrator can restore the event.
