@@ -697,7 +697,7 @@ document.addEventListener('alpine:init', () => {
     get unidadMapa() { return this.modoMapa === 'personas' ? [this.txt.persona, this.txt.personas] : [this.txt.eventoSing, this.txt.eventos]; },
     get tituloTotal() {
       if (this.modoMapa === 'personas') { return this.txt.personasComprometidas; }
-      return this.modoMapa === 'sincubrir' ? this.txt.eventosPiden : this.txt.eventos;
+      return this.modoMapa === 'sincubrir' ? this.txt.eventosPiden : this.txt.eventosRot;
     },
     get tituloDias() {
       if (this.modoMapa === 'personas') { return this.txt.diasConGente; }

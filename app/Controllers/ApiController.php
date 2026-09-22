@@ -174,7 +174,12 @@ final class ApiController extends Controller
             Response::json(['ok' => false, 'error' => 'Año fuera de rango.'], 422);
         }
         $modo = in_array($req->get('modo'), ['inicio', 'personas', 'sincubrir'], true) ? (string) $req->get('modo') : 'activos';
-        Response::json(['ok' => true] + Evento::mapaCalor($anio, self::filtros($req), $modo, (bool) $req->get('cancelados')));
+        $mapa = Evento::mapaCalor($anio, self::filtros($req), $modo, (bool) $req->get('cancelados'));
+        // Los nombres de mes se muestran en el idioma de la interfaz.
+        foreach ($mapa['meses'] as $i => $m) {
+            $mapa['meses'][$i]['nombre'] = t($m['nombre']);
+        }
+        Response::json(['ok' => true] + $mapa);
     }
 
     /** GET ?r=api/linea&inicio=&fin=&[filtros] → línea de tiempo por área (eventos + gente), máximo dos meses */

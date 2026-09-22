@@ -70,6 +70,7 @@ $cfg = [
         'diasConEventosPiden' => t('Días con eventos que piden cubrimiento'),
         'diasConEventos'   => t('Días con eventos'),
         'eventoSing'       => t('evento'),
+        'eventosRot'       => t('Eventos'),
         'cancelado'        => t('cancelado'),
     ],
     'areaColores' => array_column(array_map(static fn(array $a): array => ['id' => (string) $a['id'], 'color' => $a['color'] ?: Campos::COLOR_NEUTRO], $areas), 'color', 'id'),
