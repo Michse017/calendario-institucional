@@ -176,6 +176,17 @@ final class Catalogo
         return self::listar('area', true);
     }
 
+    /** Id del área a partir de su nombre; null si ese nombre no existe en el catálogo. */
+    public static function idArea(string $valor): ?int
+    {
+        $v = trim($valor);
+        if ($v === '') {
+            return null;
+        }
+        $fila = self::buscarPorNorm('area', Normalizador::normalizar($v));
+        return $fila ? (int) $fila['id'] : null;
+    }
+
     /** Opciones de un desplegable de lista cerrada: activas, alfabéticas y sin los comodines N/A y Otros. */
     public static function opciones(string $campo): array
     {

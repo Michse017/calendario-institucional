@@ -5,13 +5,16 @@ use App\Core\Idioma;
 $cfg = [
     'fecha' => $fecha,
     'vistaInicial' => $vistaInicial,
-    'filtros' => array_intersect_key($filtros, array_flip(['area_id', 'tipo_accion_id', 'segmento_id', 'estado'])) + ['mios' => $mios ? '1' : ''],
+    'filtros' => array_intersect_key($filtros, array_flip(['area_id', 'tipo_accion_id', 'segmento_id', 'estado', 'persona'])) + ['mios' => $mios ? '1' : ''],
     'abrir' => $eventoAbrir ?: null,
     'nuevoUrl' => url('eventos/nuevo'),
     'puedeCrear' => $puedeCrear,
     'proximos' => $proximos,
     'anio' => $anio,
     'idioma' => Idioma::actual(),
+    // Gente activa (filtro de personas) y lo que lidera cada uno este año (panel al señalar su chip).
+    'usuarios' => array_map(static fn(array $u): array => ['id' => (string) $u['id'], 'nombre' => $u['nombre'], 'area' => ($u['area_nombre'] ?? '') !== '' ? t($u['area_nombre']) : ''], $usuarios),
+    'agendas' => $agendas,
     // Los textos que pinta el JavaScript viajan traducidos dentro de la
     // configuración. Meterlos en las expresiones de Alpine obligaría a pelear
     // con las comillas y a escapar a mano; así llegan ya en su idioma.
@@ -40,6 +43,34 @@ $cfg = [
         'vistaLista'       => t('Lista'),
         'todoElDia'        => t('Todo el día'),
         'diasSemana'       => explode(' ', t('L M X J V S D')),
+        // Filtro de personas, panel del día, vistazo, modos del mapa y línea de tiempo.
+        'vistaLinea'       => t('Línea de tiempo'),
+        'persona'          => t('persona'),
+        'personas'         => t('personas'),
+        'personaFallback'  => t('Persona'),
+        'quitarA'          => t('Quitar a'),
+        'yMas'             => t('y :n más'),
+        'responsable'      => t('Responsable'),
+        'pideCubrimiento'  => t('Pide cubrimiento'),
+        'noPideCubrimiento' => t('No pide cubrimiento'),
+        'clicFicha'        => t('Haz clic para ver la ficha'),
+        'van'              => t('Van:'),
+        'en'               => t('en'),
+        'modoTodo'         => t('Todo el evento'),
+        'modoTodoAyuda'    => t('Pinta todos los días que dura cada evento, no solo el primero.'),
+        'modoInicio'       => t('Solo el inicio'),
+        'modoInicioAyuda'  => t('Pinta únicamente el día en que arranca cada evento.'),
+        'modoPersonas'     => t('Disponibilidad'),
+        'modoPersonasAyuda' => t('Cuánta gente está comprometida cada día. Solo cuenta eventos del calendario: no sabe de vacaciones ni de bajas.'),
+        'modoCubre'        => t('Piden cubrimiento'),
+        'modoCubreAyuda'   => t('Días con eventos que piden cubrimiento.'),
+        'personasComprometidas' => t('Personas comprometidas'),
+        'eventosPiden'     => t('Eventos que piden cubrimiento'),
+        'diasConGente'     => t('Días con gente comprometida'),
+        'diasConEventosPiden' => t('Días con eventos que piden cubrimiento'),
+        'diasConEventos'   => t('Días con eventos'),
+        'eventoSing'       => t('evento'),
+        'cancelado'        => t('cancelado'),
     ],
     'areaColores' => array_column(array_map(static fn(array $a): array => ['id' => (string) $a['id'], 'color' => $a['color'] ?: Campos::COLOR_NEUTRO], $areas), 'color', 'id'),
     'areaNombres' => array_column(array_map(static fn(array $a): array => ['id' => (string) $a['id'], 'valor' => t($a['valor'])], $areas), 'valor', 'id'),
@@ -125,6 +156,55 @@ $conteoPorArea = array_column($conteos['areas'], 'n', 'id');
           </div>
         </div>
       </div>
+      <div class="mt-4">
+        <p class="label"><?= h(t('Persona')) ?></p>
+        <p class="mb-1.5 text-[11px] leading-snug text-gris"><?= h(t('Añade una o varias. Salen los eventos de los que alguna de ellas es responsable. En el modo «Disponibilidad», los días en blanco son los que tienen libres.')) ?></p>
+        <div class="relative" @click.outside="abiertoPersona = false">
+          <input class="input py-1.5" type="search" placeholder="<?= h(t('Escribe un nombre y pulsa Enter…')) ?>"
+                 x-model="qPersona" @focus="abiertoPersona = true" @input="abiertoPersona = true; activoPersona = 0"
+                 @keydown="teclaPersona($event)" autocomplete="off" aria-label="<?= h(t('Buscar persona')) ?>">
+          <ul x-show="abiertoPersona && candidatosPersona.length" x-cloak x-transition.opacity
+              class="card absolute z-20 mt-1 max-h-64 w-full overflow-auto p-1 text-sm">
+            <template x-for="(u, i) in candidatosPersona" :key="u.id">
+              <li>
+                <button type="button" class="block w-full rounded-lg px-3 py-2 text-left hover:bg-[#F0EEE8] dark:hover:bg-[#232834]"
+                        :class="{ 'bg-[#F0EEE8] dark:bg-[#232834]': i === activoPersona }"
+                        @click="anadirPersona(u.id)" @mouseenter="activoPersona = i">
+                  <span x-text="u.nombre"></span>
+                  <span class="text-xs text-gris" x-text="u.area ? ' · ' + u.area : ''"></span>
+                </button>
+              </li>
+            </template>
+          </ul>
+        </div>
+        <div class="cro-chips" x-show="sel('persona').length" x-cloak>
+          <template x-for="id in sel('persona')" :key="id">
+            <button type="button" class="cro-chip-filtro" :class="{ 'cro-chip-porquitar': personaPorQuitar === id }" :title="txt.quitarA + ' ' + nombrePersona(id)"
+                    @click="verAgenda = ''; alternarMulti('persona', id)"
+                    @mouseenter="verAgenda = id" @mouseleave="verAgenda = ''"
+                    @focus="verAgenda = id" @blur="verAgenda = ''">
+              <span x-text="nombrePersona(id)"></span><span class="cro-chip-x">✕</span>
+            </button>
+          </template>
+        </div>
+
+        <p class="mt-1 text-[11px] leading-snug text-peligro" x-show="personaPorQuitar" x-cloak><?= h(t('Pulsa Retroceso otra vez para quitar a')) ?> <b x-text="nombrePersona(personaPorQuitar)"></b>.</p>
+
+        <!-- Qué lleva esa persona este año. Sale al señalar su chip, sin tener que pinchar. -->
+        <div x-show="verAgenda && sel('persona').includes(verAgenda)" x-cloak x-transition.opacity class="cro-agenda-pop">
+          <p class="cro-agenda-quien" x-text="nombrePersona(verAgenda)"></p>
+          <template x-if="agendaDe(verAgenda).length">
+            <ul class="cro-agenda-lista">
+              <template x-for="(e, i) in agendaDe(verAgenda).slice(0, 8)" :key="i">
+                <li><span class="cro-agenda-fecha" x-text="e.fechas"></span> <span x-text="e.nombre"></span></li>
+              </template>
+            </ul>
+          </template>
+          <p class="cro-agenda-mas" x-show="agendaDe(verAgenda).length > 8"
+             x-text="txt.yMas.replace(':n', agendaDe(verAgenda).length - 8)"></p>
+          <p class="cro-agenda-mas" x-show="!agendaDe(verAgenda).length"><?= h(t('Sin eventos este año.')) ?></p>
+        </div>
+      </div>
       <label class="mt-4 flex cursor-pointer items-center justify-between text-sm<?= $tieneArea ? '' : ' opacity-60' ?>" <?= $tieneArea ? '' : 'title="' . h(t('No tienes un área asignada')) . '"' ?>>
         <span><?= h(t('Solo mi área')) ?></span>
         <input type="checkbox" class="h-4 w-4 accent-azul" :checked="!!filtros.mios" @change="filtros.mios = $event.target.checked ? '1' : ''; if (filtros.mios) filtros.area_id = ''; aplicar()"<?= $tieneArea ? '' : ' disabled' ?>>
@@ -158,30 +238,69 @@ $conteoPorArea = array_column($conteos['areas'], 'n', 'id');
         <button type="button" class="px-3 py-1.5 hover:bg-[#F0EEE8] dark:hover:bg-[#232834]" @click="anterior()" aria-label="<?= h(t('Anterior')) ?>">‹</button>
         <button type="button" class="border-l border-borde px-3 py-1.5 hover:bg-[#F0EEE8] dark:border-noche-borde dark:hover:bg-[#232834]" @click="siguiente()" aria-label="<?= h(t('Siguiente')) ?>">›</button>
       </div>
-      <h1 class="ml-2 font-serif text-2xl cro-cal-titulo" x-text="vista === 'anio' ? txt.mapaDeCalor + ' ' + anio : titulo"></h1>
+      <h1 class="ml-2 font-serif text-2xl cro-cal-titulo" x-text="vista === 'anio' ? txt.mapaDeCalor + ' ' + anio : (vista === 'linea' ? txt.vistaLinea + ' · ' + titulo : titulo)"></h1>
       <div class="ml-auto flex gap-1 rounded-full border border-borde p-1 dark:border-noche-borde">
-        <template x-for="v in [['anio',txt.vistaAnio],['dayGridMonth',txt.vistaMes],['timeGridWeek',txt.vistaSemana],['listMonth',txt.vistaLista]]" :key="v[0]">
+        <template x-for="v in [['anio',txt.vistaAnio],['dayGridMonth',txt.vistaMes],['timeGridWeek',txt.vistaSemana],['listMonth',txt.vistaLista],['linea',txt.vistaLinea]]" :key="v[0]">
           <button type="button" class="rounded-full px-3 py-1 text-xs font-semibold" :class="vista === v[0] ? 'bg-azul text-white' : 'text-gris hover:text-tinta dark:hover:text-white'" @click="cambiarVista(v[0])" x-text="v[1]"></button>
         </template>
       </div>
     </div>
-    <div x-ref="cal" x-show="vista !== 'anio'"></div>
+    <div x-ref="cal" x-show="vista !== 'anio' && vista !== 'linea'"></div>
 
     <!-- Vista "Año": mapa de calor por día, con los mismos filtros de la barra lateral -->
     <div x-show="vista === 'anio'" x-cloak>
-      <div class="cro-hm-resumen">
-        <span><?= h(t('Eventos')) ?> <b x-text="mapa.resumen.acciones ?? 0"></b></span>
-        <button type="button" class="cro-hm-cifra" :class="{ 'cro-hm-cifra-activa': foco === 'activos' }"
-                title="<?= h(t('Resaltar en el mapa todos los días que tienen algún evento')) ?>"
-                @click="resaltar('activos', mapa.resumen.dias_activos)"><?= h(t('Días con eventos')) ?> <b x-text="mapa.resumen.dias_con_algo ?? 0"></b></button>
-        <button type="button" class="cro-hm-cifra" x-show="mapa.resumen.dia_pico" :class="{ 'cro-hm-cifra-activa': foco === 'dia' }"
-                title="<?= h(t('Llevarme a ese día en el mapa')) ?>"
-                @click="resaltar('dia', [mapa.resumen.dia_pico])"><?= h(t('Día más cargado')) ?> <b x-text="mapa.resumen.dia_pico"></b> <?= h(t('con')) ?> <b x-text="mapa.resumen.dia_pico_n"></b></button>
-        <button type="button" class="cro-hm-cifra" x-show="mapa.resumen.semana_pico" :class="{ 'cro-hm-cifra-activa': foco === 'semana' }"
-                title="<?= h(t('Llevarme a esa semana en el mapa')) ?>"
-                @click="resaltar('semana', mapa.resumen.semana_pico_dias)"><?= h(t('Semana más cargada')) ?> <b x-text="semanaTexto(mapa.resumen.semana_pico)"></b> <?= h(t('con')) ?> <b x-text="mapa.resumen.semana_pico_n"></b></button>
+      <!-- Qué pinta el mapa: es el control, va primero y se ve como control, no como texto. -->
+      <div class="cro-hm-barra">
+        <p class="cro-hm-barra-rot"><?= h(t('Qué pinta el mapa')) ?></p>
+        <div class="cro-hm-segm" role="group" aria-label="<?= h(t('Qué pinta el mapa')) ?>">
+          <template x-for="m in modosMapa" :key="m.id">
+            <button type="button" class="cro-hm-seg" :class="{ 'cro-hm-seg-activo': modoMapa === m.id }"
+                    :title="m.ayuda" :aria-pressed="modoMapa === m.id"
+                    @click="modoMapa = m.id; cargarMapa()" x-text="m.rotulo"></button>
+          </template>
+        </div>
         <button type="button" class="cro-hm-quitar" x-show="foco" x-cloak @click="resaltar('', [])"><?= h(t('Quitar resaltado')) ?></button>
-        <label class="cro-hm-modo"><input type="checkbox" class="accent-azul" @change="modoMapa = $event.target.checked ? 'inicio' : 'activos'; cargarMapa()"> <?= h(t('Contar solo el día de inicio')) ?></label>
+      </div>
+
+      <!-- Las cifras, en tarjetas. Las que se pueden pulsar resaltan esos días en el mapa. -->
+      <div class="cro-hm-cifras">
+        <div class="cro-hm-dato">
+          <b class="cro-hm-num" x-text="mapa.resumen.acciones ?? 0"></b>
+          <span class="cro-hm-rot" x-text="tituloTotal"></span>
+          <span class="cro-hm-pie" x-text="txt.en + ' ' + anio"></span>
+        </div>
+
+        <button type="button" class="cro-hm-dato cro-hm-dato-btn" :class="{ 'cro-hm-dato-activo': foco === 'activos' }"
+                title="<?= h(t('Resaltar en el mapa todos esos días')) ?>"
+                @click="resaltar('activos', mapa.resumen.dias_activos)">
+          <b class="cro-hm-num" x-text="mapa.resumen.dias_con_algo ?? 0"></b>
+          <span class="cro-hm-rot" x-text="tituloDias"></span>
+          <span class="cro-hm-pie"><?= h(t('pulsa para resaltarlos')) ?></span>
+        </button>
+
+        <button type="button" class="cro-hm-dato cro-hm-dato-btn" x-show="mapa.resumen.dia_pico" x-cloak
+                :class="{ 'cro-hm-dato-activo': foco === 'dia' }"
+                title="<?= h(t('Llevarme a ese día en el mapa')) ?>"
+                @click="resaltar('dia', [mapa.resumen.dia_pico])">
+          <span class="cro-hm-linea">
+            <b class="cro-hm-num" x-text="mapa.resumen.dia_pico_n"></b>
+            <span class="cro-hm-uni" x-text="plural(mapa.resumen.dia_pico_n)"></span>
+          </span>
+          <span class="cro-hm-rot"><?= h(t('Día más cargado')) ?></span>
+          <span class="cro-hm-pie" x-text="fechaCorta(mapa.resumen.dia_pico)"></span>
+        </button>
+
+        <button type="button" class="cro-hm-dato cro-hm-dato-btn" x-show="mapa.resumen.semana_pico" x-cloak
+                :class="{ 'cro-hm-dato-activo': foco === 'semana' }"
+                title="<?= h(t('Llevarme a esa semana en el mapa')) ?>"
+                @click="resaltar('semana', mapa.resumen.semana_pico_dias)">
+          <span class="cro-hm-linea">
+            <b class="cro-hm-num" x-text="mapa.resumen.semana_pico_n"></b>
+            <span class="cro-hm-uni" x-text="plural(mapa.resumen.semana_pico_n)"></span>
+          </span>
+          <span class="cro-hm-rot"><?= h(t('Semana más cargada')) ?></span>
+          <span class="cro-hm-pie" x-text="semanaTexto(mapa.resumen.semana_pico)"></span>
+        </button>
       </div>
 
       <div class="cro-hm-grid">
@@ -199,12 +318,63 @@ $conteoPorArea = array_column($conteos['areas'], 'n', 'id');
                                   'cro-hm-hoy': c && c.f === fechaHoy }"
                         :data-f="c ? c.f : ''"
                         :style="fondoCelda(c)"
-                        :title="c ? tituloCelda(c) : ''" :disabled="!c" @click="c && irADia(c.f)" x-text="c ? c.d : ''"></button>
+                        :disabled="!c"
+                        @mouseenter="c && verVistazo(c, $event.currentTarget)" @mouseleave="vistazo = null"
+                        @click.stop="c && pulsarDia(c, $event.currentTarget)" x-text="c ? c.d : ''"></button>
               </template>
             </div>
           </div>
         </template>
         <p x-show="!mapa.meses.length" class="text-sm text-gris"><?= h(t('Cargando…')) ?></p>
+
+      <!-- Panel del día: se abre al pulsar una casilla y se queda hasta cerrarlo, para poder
+           pinchar un evento y ver su ficha sin salir del mapa. -->
+      <div x-show="dia" x-cloak class="cro-dia-pop" :style="dia ? dia.pos : ''"
+           @click.outside="dia = null; diaEvento = null" @keydown.escape.window="dia = null; diaEvento = null">
+        <template x-if="dia">
+          <div>
+            <div class="cro-dia-cab">
+              <span x-text="dia.fecha"></span>
+              <button type="button" class="cro-dia-x" @click="dia = null" aria-label="<?= h(t('Cerrar')) ?>">✕</button>
+            </div>
+
+            <!-- Lista de eventos del día -->
+            <template x-if="!diaEvento">
+              <div>
+                <template x-for="e in dia.eventos" :key="e.id">
+                  <button type="button" class="cro-dia-item" @click="diaEvento = e">
+                    <span class="cro-dia-punto" :style="'background:' + e.color"></span>
+                    <span class="cro-dia-nombre" x-text="e.nombre"></span>
+                    <span class="cro-dia-marca cro-marca-cubre" x-show="e.cubre" title="<?= h(t('Pide cubrimiento')) ?>">⚑</span>
+                    <span class="cro-dia-flecha">›</span>
+                  </button>
+                </template>
+                <p class="cro-dia-vacio" x-show="!dia.eventos.length"><?= h(t('Sin eventos este día.')) ?></p>
+                <button type="button" class="cro-dia-ir cro-dia-ir-suave" @click="irADia(dia.fecha)"><?= h(t('Ver este día en el calendario')) ?> →</button>
+              </div>
+            </template>
+
+            <!-- Ficha del evento elegido -->
+            <template x-if="diaEvento">
+              <div>
+                <button type="button" class="cro-dia-volver" @click="diaEvento = null">‹ <?= h(t('Todos los del día')) ?></button>
+                <p class="cro-dia-titulo" x-text="diaEvento.nombre"></p>
+                <dl class="cro-dia-datos">
+                  <div><dt><?= h(t('Área')) ?></dt><dd x-text="diaEvento.area"></dd></div>
+                  <div><dt><?= h(t('Tipo')) ?></dt><dd x-text="diaEvento.tipo"></dd></div>
+                  <div><dt><?= h(t('Fechas')) ?></dt><dd x-text="diaEvento.inicio === diaEvento.fin ? diaEvento.inicio : diaEvento.inicio + ' → ' + diaEvento.fin"></dd></div>
+                  <div><dt><?= h(t('Lugar')) ?></dt><dd x-text="diaEvento.lugar"></dd></div>
+                  <div><dt><?= h(t('Responsable')) ?></dt><dd x-text="diaEvento.dueno || '—'"></dd></div>
+                  <div class="cro-dia-ancho"><dt><?= h(t('Cubrimiento')) ?></dt>
+                    <dd x-text="diaEvento.cubre ? '⚑ ' + txt.pideCubrimiento : txt.noPideCubrimiento"></dd>
+                  </div>
+                </dl>
+                <button type="button" class="cro-dia-ir" @click="irAlEvento(diaEvento)"><?= h(t('Ir al evento')) ?> →</button>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
       </div>
 
       <div class="cro-hm-leyenda">
@@ -218,8 +388,86 @@ $conteoPorArea = array_column($conteos['areas'], 'n', 'id');
             <span class="cro-hm-area"><span class="cro-hm-punto" :style="'background:' + colorArea(id)"></span><span x-text="nombreArea(id)"></span></span>
           </template>
         </span>
-        <span class="cro-hm-nota" x-show="mapa.max"><?= h(t('Hasta')) ?> <b x-text="mapa.max"></b> <?= h(t('por día. Haz clic en un día para abrirlo en el calendario.')) ?></span>
+        <span class="cro-hm-nota" x-show="mapa.max"><?= h(t('Hasta')) ?> <b x-text="mapa.max"></b> <?= h(t('por día. Haz clic en un día para ver sus eventos y quién responde por ellos.')) ?></span>
       </div>
+    </div>
+
+    <!-- Vista "Línea de tiempo": por área, sus eventos y su gente día a día. En la fila de cada
+         persona van, sin texto, los eventos que lidera; el nombre solo en la fila de eventos. -->
+    <div x-show="vista === 'linea'" x-cloak class="cro-lt">
+      <div class="cro-lt-leyenda">
+        <span><i class="cro-lt-mues cro-lt-mues-ev"></i> <?= h(t('Evento del área')) ?></span>
+        <span><i class="cro-lt-mues cro-lt-mues-r"></i> <?= h(t('Responsable')) ?></span>
+        <span><i class="cro-lt-mues cro-lt-mues-cubre">⚑</i> <?= h(t('Pide cubrimiento')) ?></span>
+      </div>
+      <p x-show="linea.dias.length && !linea.areas.length" class="py-10 text-center text-sm text-gris"><?= h(t('Nada en este mes con esos filtros.')) ?></p>
+      <div class="cro-lt-scroll" x-show="linea.areas.length">
+        <div class="cro-lt-cuerpo" :style="'min-width:' + (170 + linea.n * 18) + 'px'">
+          <div class="cro-lt-fila cro-lt-cab" :style="'grid-template-columns: var(--lt-rot) repeat(' + linea.n + ', minmax(18px,1fr))'">
+            <div class="cro-lt-rot"></div>
+            <template x-for="(d, i) in linea.dias" :key="d.f">
+              <div class="cro-lt-dia" :class="{ 'cro-lt-finde': d.finde, 'cro-lt-hoy': d.hoy }" :style="'grid-column:' + (i + 2)"><span x-text="d.l"></span><b x-text="d.d"></b></div>
+            </template>
+          </div>
+
+          <template x-for="a in linea.areas" :key="a.id">
+            <div class="cro-lt-area">
+              <div class="cro-lt-area-cab">
+                <span class="cro-lt-punto" :style="'background:' + a.color"></span>
+                <span x-text="a.nombre"></span>
+                <span class="cro-lt-area-n" x-text="a.eventos.length + ' ' + (a.eventos.length === 1 ? txt.eventoSing : txt.eventos) + ' · ' + a.personas.length + ' ' + (a.personas.length === 1 ? txt.persona : txt.personas)"></span>
+              </div>
+
+              <div class="cro-lt-fila" x-show="a.eventos.length"
+                   :style="'grid-template-columns: var(--lt-rot) repeat(' + linea.n + ', minmax(18px,1fr)); grid-template-rows: repeat(' + a.carriles + ', 26px)'">
+                <div class="cro-lt-rot cro-lt-rot-ev"><?= h(t('Eventos')) ?></div>
+                <template x-for="(d, i) in linea.dias" :key="'c' + d.f"><div class="cro-lt-celda" :class="{ 'cro-lt-finde': d.finde, 'cro-lt-hoy': d.hoy }" :style="'grid-column:' + (i + 2) + '; grid-row: 1 / -1'"></div></template>
+                <template x-for="e in a.eventos" :key="'e' + e.id">
+                  <button type="button" class="cro-lt-barra cro-lt-ev"
+                          :class="{ 'cro-lt-cancelado': e.estado === 'cancelado', 'cro-lt-corta': e.c2 === e.c1, 'cro-lt-foco': focoLinea === e.id, 'cro-lt-tenue': focoLinea && focoLinea !== e.id }"
+                          :style="'grid-column:' + (e.c1 + 1) + ' / ' + (e.c2 + 2) + '; grid-row:' + e.carril + '; --c:' + a.color"
+                          @mouseenter="vistazoLinea(e, $event.currentTarget)" @mouseleave="salirLinea()" @click="vistazo = null; abrir(e.id)">
+                    <span class="cro-lt-ico" x-text="e.cubre ? '⚑' : ''"></span><span class="cro-lt-txt" x-text="e.nombre"></span>
+                  </button>
+                </template>
+              </div>
+
+              <template x-for="p in a.personas" :key="'p' + p.id">
+                <div class="cro-lt-fila cro-lt-persona" :class="{ 'cro-lt-fila-foco': focoLinea && p.barras.some(b => b.id === focoLinea) }"
+                     :style="'grid-template-columns: var(--lt-rot) repeat(' + linea.n + ', minmax(18px,1fr)); grid-template-rows: repeat(' + p.carriles + ', 26px)'">
+                  <div class="cro-lt-rot"><span class="cro-lt-nombre" x-text="p.nombre"></span><span class="cro-lt-cuenta" x-show="p.en" x-text="p.en"></span></div>
+                  <div class="cro-lt-pista" :style="'grid-column: 2 / ' + (linea.n + 2) + '; grid-row: 1 / -1'"></div>
+                  <template x-for="(d, i) in linea.dias" :key="'c' + d.f"><div class="cro-lt-celda" :class="{ 'cro-lt-finde': d.finde, 'cro-lt-hoy': d.hoy }" :style="'grid-column:' + (i + 2) + '; grid-row: 1 / -1'"></div></template>
+                  <template x-for="b in p.barras" :key="'b' + b.id">
+                    <button type="button" class="cro-lt-barra cro-lt-muda cro-lt-r" :aria-label="b.nombre + ' · ' + txt.responsable"
+                            :class="{ 'cro-lt-cancelado': b.estado === 'cancelado', 'cro-lt-corta': b.c2 === b.c1, 'cro-lt-foco': focoLinea === b.id, 'cro-lt-tenue': focoLinea && focoLinea !== b.id }"
+                            :style="'grid-column:' + (b.c1 + 1) + ' / ' + (b.c2 + 2) + '; grid-row:' + b.carril + '; --c:' + a.color"
+                            @mouseenter="vistazoLinea(b, $event.currentTarget)" @mouseleave="salirLinea()" @click="vistazo = null; abrir(b.id)">
+                      <span class="cro-lt-txt" aria-hidden="true"></span>
+                    </button>
+                  </template>
+                </div>
+              </template>
+              <p class="cro-lt-vacio" x-show="!a.personas.length"><?= h(t('Nadie activo en esta área.')) ?></p>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vistazo al señalar: solo informa, no se puede pulsar (pointer-events:none), así
+         que nunca se interpone entre el ratón y la casilla. El detalle va en el panel. -->
+    <div x-show="vistazo && !dia" x-cloak class="cro-vistazo" :style="vistazo ? vistazo.pos : ''">
+      <template x-if="vistazo">
+        <div>
+          <p class="cro-vistazo-cab"><span x-text="vistazo.fecha"></span> · <span x-text="vistazo.cuenta"></span></p>
+          <ul class="cro-vistazo-lista">
+            <template x-for="(n, i) in vistazo.lineas" :key="i"><li x-text="n"></li></template>
+          </ul>
+          <p class="cro-vistazo-gente" x-show="vistazo.gente" x-text="vistazo.gente"></p>
+          <p class="cro-vistazo-pie" x-text="vistazo.pie || txt.clicFicha"></p>
+        </div>
+      </template>
     </div>
   </section>
 

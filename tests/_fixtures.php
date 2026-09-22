@@ -5,6 +5,8 @@ declare(strict_types=1);
 function datosEvento(array $extra = []): array
 {
     return $extra + [
+        // Responsable: la cuenta 2 de la semilla (Carlos Mena, Programación), del área del fixture.
+        'dueno_id' => '2', 'requiere_cubrimiento' => '0',
         'nombre' => 'Xciclo de Jazz', 'fecha_inicio' => '2026-09-26', 'fecha_fin' => '2026-09-28', 'estado' => 'no_realizado',
         'tipo_accion' => 'Concierto', 'segmento' => 'Público general', 'area' => 'Programación',
         'linea_estrategica' => 'C1. Ampliar el acceso de la ciudadanía a la programación cultural', 'pais' => 'Xandalia', 'ciudad' => 'Xpuerto Sereno', 'mercado' => 'Xregional', 'organizador' => 'Xmeridiano',

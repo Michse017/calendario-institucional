@@ -12,6 +12,7 @@ function payloadValido(array $extra = []): array
         'mercado' => 'Europa', 'organizador' => 'IFTM',
         'objetivo' => 'Promover el destino', 'resultados' => 'n/a', 'alianzas' => 'ProColombia', 'observaciones' => 'N/A',
         'contactos_url' => 'https://drive.google.com/x', 'evidencia_url' => 'pendiente', 'reuniones' => ' 12 ',
+        'dueno_id' => '1',
     ];
 }
 
@@ -38,7 +39,7 @@ function test_validator_todos_obligatorios(): void
     $obligatorios = [
         'nombre', 'fecha_inicio', 'fecha_fin', 'estado', 'tipo_accion', 'segmento', 'area',
         'linea_estrategica', 'pais', 'ciudad', 'mercado', 'organizador', 'objetivo',
-        'alianzas', 'contactos_url', 'evidencia_url', 'reuniones',
+        'alianzas', 'contactos_url', 'evidencia_url', 'reuniones', 'dueno_id',
     ];
     foreach ($obligatorios as $c) {
         assertTrue(isset($r['errores'][$c]), "falta error en $c");

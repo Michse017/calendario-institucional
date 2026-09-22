@@ -42,8 +42,25 @@ $indJs = $ind;
 foreach ($indJs['por_tipo'] as $i => $f)      { $indJs['por_tipo'][$i]['tipo'] = t($f['tipo']); }
 foreach ($indJs['por_segmento'] as $i => $f)  { $indJs['por_segmento'][$i]['segmento'] = t($f['segmento']); }
 foreach ($indJs['por_area'] as $i => $f)      { $indJs['por_area'][$i]['area'] = t($f['area']); }
+// Informe de cubrimiento: las áreas vienen sembradas y se traducen; los nombres de la gente, no.
+$cubJs = $cub;
+foreach ($cubJs['carga'] as $i => $f)        { $cubJs['carga'][$i]['area'] = $f['area'] !== null ? t($f['area']) : null; }
+foreach ($cubJs['responsables'] as $i => $f) { $cubJs['responsables'][$i]['area'] = $f['area'] !== null ? t($f['area']) : null; }
+foreach ($cubJs['por_area'] as $i => $f)     { $cubJs['por_area'][$i]['area'] = t($f['area']); }
+$indJs['cub'] = $cubJs;
 $indJs['txt'] = [
     'meses'   => $mesCorto,
+    'eventos'      => t('Eventos'),
+    'dias'         => t('Días'),
+    'piden'        => t('Piden cubrimiento'),
+    'noPiden'      => t('No lo piden'),
+    'lidera'       => t('Eventos que lidera'),
+    'conCub'       => t('De ellos, con cubrimiento'),
+    'semana'       => t('Semana'),
+    'personasDia'  => t('personas-día'),
+    'vacioPiden'   => t('Ningún evento de este año pide cubrimiento todavía.'),
+    'vacioEventos' => t('Sin eventos este año.'),
+    'vacioSemanas' => t('Nadie comprometido este año todavía: marca qué eventos piden cubrimiento.'),
     'estados' => array_map('t', ['No realizado', 'En ejecución', 'Realizado', 'Cancelado']),
     'total'      => t('Total'),
     'realizadas' => t('Realizadas'),
@@ -140,6 +157,49 @@ $indJs['txt'] = [
     <div class="card p-5"><p class="label"><?= h(t('Por área')) ?></p><div x-ref="area" class="h-72"></div></div>
     <div class="card p-5 lg:col-span-2"><p class="label"><?= h(t('Por tipo de evento')) ?></p><div x-ref="tipo" class="h-80"></div></div>
     <div class="card p-5"><p class="label"><?= h(t('Por segmento')) ?></p><div x-ref="segmento" class="h-80"></div></div>
+  </div>
+
+  <div class="mt-8 mb-3 flex flex-wrap items-end justify-between gap-2">
+    <div>
+      <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-gris"><?= h(t('Cubrimiento')) ?></p>
+      <p class="mt-1 max-w-2xl text-sm text-gris"><?= h(t('Quién lidera y en qué semanas se aprieta. Cuentan los eventos que piden cubrimiento, con su responsable.')) ?></p>
+    </div>
+    <a class="text-xs font-semibold text-azul hover:underline" href="<?= h(url('calendario', ['anio' => $anio, 'vista' => 'linea'])) ?>"><?= h(t('Ver la línea de tiempo')) ?> ↗</a>
+  </div>
+  <div class="grid gap-6 lg:grid-cols-3">
+    <div class="card p-5 lg:col-span-2"><p class="label"><?= h(t('Responsables con más eventos que piden cubrimiento')) ?></p><div x-ref="cubPersonas" class="h-80"></div></div>
+    <div class="card p-5"><p class="label"><?= h(t('Cubrimiento por área')) ?></p><div x-ref="cubAreas" class="h-80"></div></div>
+    <div class="card p-5 lg:col-span-2"><p class="label"><?= h(t('Responsables que más eventos lideran')) ?></p><div x-ref="cubResp" class="h-80"></div></div>
+    <div class="card p-5">
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p class="label mb-0"><?= h(t('Carga por responsable')) ?></p>
+        <a class="text-xs font-semibold text-azul hover:underline" href="<?= h(url('disponibilidad')) ?>"><?= h(t('Ver quién está disponible')) ?> ↗</a>
+      </div>
+      <?php if ($cub['carga']): ?>
+      <table class="tabla text-sm">
+        <thead><tr><th scope="col"><?= h(t('Persona')) ?></th><th scope="col"><?= h(t('Eventos')) ?></th><th scope="col"><?= h(t('Días')) ?></th></tr></thead>
+        <tbody>
+        <?php foreach (array_slice($cub['carga'], 0, 12) as $p): ?>
+          <tr>
+            <td class="font-medium"><a class="hover:text-azul" href="<?= h(url('eventos', ['persona' => (int) ($p['id'] ?? 0), 'anio' => $anio])) ?>"><?= h($p['nombre']) ?></a><span class="block text-xs text-gris"><?= ($p['area'] ?? '') !== '' && $p['area'] !== null ? h(t($p['area'])) : '—' ?></span></td>
+            <td class="font-semibold"><?= (int) $p['eventos'] ?></td>
+            <td class="text-gris"><?= (int) $p['dias'] ?></td>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+      <?php else: ?>
+      <p class="py-6 text-center text-sm text-gris"><?= h(t('Ningún evento de :anio pide cubrimiento todavía.', ['anio' => $anio])) ?></p>
+      <?php endif; ?>
+    </div>
+  </div>
+
+  <div class="card mt-6 p-5">
+    <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+      <p class="label mb-0"><?= h(t('Personas-día por semana')) ?></p>
+      <p class="text-xs text-gris"><?= h(t('Cuánta gente está comprometida cada semana del año, sumando sus días. El pico va en ámbar: es la semana más cargada.')) ?></p>
+    </div>
+    <div x-ref="cubSemanas" class="h-72"></div>
   </div>
 </div>
 <?php $scripts = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" integrity="sha384-Mx5lkUEQPM1pOJCwFtUICyX45KNojXbkWdYhkKUKsbv391mavbfoAmONbzkgYPzR" crossorigin="anonymous"></script>'; ?>

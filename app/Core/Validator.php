@@ -51,6 +51,19 @@ final class Validator
             $e['fecha_fin'] = 'La fecha fin debe ser igual o posterior a la fecha inicio.';
         }
 
+        // Responsable del evento. Aquí solo se comprueba la forma; que la persona exista y sea
+        // del área lo mira Usuario::errorDueno(), que sí puede consultar la base.
+        $dueno = trim((string) ($in['dueno_id'] ?? ''));
+        if ($dueno === '' || !ctype_digit($dueno) || (int) $dueno <= 0) {
+            $e['dueno_id'] = 'Elige quién es responsable del evento.';
+        } else {
+            $d['dueno_id'] = $dueno;
+        }
+
+        // ¿Necesita cubrimiento? Llega como '1' o '0' desde los dos botones del formulario; si no
+        // viene (un guion, una prueba), es que no.
+        $d['requiere_cubrimiento'] = !empty($in['requiere_cubrimiento']) ? '1' : '0';
+
         $estado = (string) ($in['estado'] ?? '');
         $permitidos = $permitirCancelado ? Campos::ESTADOS : Campos::ESTADOS_FORMULARIO;
         if (!isset($permitidos[$estado])) {

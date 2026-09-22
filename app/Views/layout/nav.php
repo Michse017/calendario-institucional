@@ -25,6 +25,7 @@ $lblTemaOscuro = str_replace("'", '', t('Tema oscuro'));
       <a href="<?= h(url('calendario')) ?>" class="<?= $activo('calendario') ?>"><?= h(t('Calendario')) ?></a>
       <a href="<?= h(url('eventos')) ?>" class="<?= $activo('eventos') ?>"><?= h(t('Eventos')) ?></a>
       <a href="<?= h(url('dashboard')) ?>" class="<?= $activo('dashboard') ?>"><?= h(t('Dashboard')) ?></a>
+      <a href="<?= h(url('disponibilidad')) ?>" class="<?= $activo('disponibilidad') ?>"><?= h(t('Disponibilidad')) ?></a>
       <?php if (es_admin()): ?><a href="<?= h(url('admin/usuarios')) ?>" class="<?= $activo('admin') ?>"><?= h(t('Admin')) ?></a><?php endif; ?>
     </nav>
 
@@ -75,6 +76,7 @@ $lblTemaOscuro = str_replace("'", '', t('Tema oscuro'));
     <a href="<?= h(url('calendario')) ?>" class="<?= $activo('calendario') ?>"><?= h(t('Calendario')) ?></a>
     <a href="<?= h(url('eventos')) ?>" class="<?= $activo('eventos') ?>"><?= h(t('Eventos')) ?></a>
     <a href="<?= h(url('dashboard')) ?>" class="<?= $activo('dashboard') ?>"><?= h(t('Dashboard')) ?></a>
+    <a href="<?= h(url('disponibilidad')) ?>" class="<?= $activo('disponibilidad') ?>"><?= h(t('Disponibilidad')) ?></a>
     <?php if (es_admin()): ?><a href="<?= h(url('admin/usuarios')) ?>" class="<?= $activo('admin') ?>"><?= h(t('Admin')) ?></a><?php endif; ?>
   </nav>
 </header>

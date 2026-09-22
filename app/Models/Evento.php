@@ -21,7 +21,8 @@ final class Evento
             (SELECT GROUP_CONCAT(c2.valor ORDER BY (c2.id = e.mercado_id) DESC, c2.valor SEPARATOR \' | \')
                FROM evento_mercados em2 JOIN catalogo_valores c2 ON c2.id = em2.mercado_id
               WHERE em2.evento_id = e.id AND em2.activo = 1) AS mercados,
-            COALESCE(ac.nombre, CONCAT(\'Usuario #\', e.creado_por)) AS creado_por_nombre
+            COALESCE(ac.nombre, CONCAT(\'Usuario #\', e.creado_por)) AS creado_por_nombre,
+            COALESCE(du.nombre, CONCAT(\'Usuario #\', e.dueno_id)) AS dueno_nombre
         FROM eventos e
         JOIN catalogo_valores ta  ON ta.id  = e.tipo_accion_id
         JOIN catalogo_valores se  ON se.id  = e.segmento_id
@@ -31,7 +32,8 @@ final class Evento
         JOIN catalogo_valores ci  ON ci.id  = e.ciudad_id
         JOIN catalogo_valores me  ON me.id  = e.mercado_id
         JOIN catalogo_valores org ON org.id = e.organizador_id
-        LEFT JOIN usuarios ac ON ac.id = e.creado_por';
+        LEFT JOIN usuarios ac ON ac.id = e.creado_por
+        LEFT JOIN usuarios du ON du.id = e.dueno_id';
 
     /** Joins mínimos para COUNT/GROUP con los mismos filtros (q usa ci y org). */
     private const FROM_CORTO = 'FROM eventos e
@@ -44,7 +46,8 @@ final class Evento
     {
         return Database::transaccion(function (PDO $pdo) use ($datos, $usuarioId): int {
             $ids = self::resolverCatalogos($datos, $usuarioId);
-            $cols = array_merge(self::COLS_SIMPLES, array_values(Campos::COLUMNA), ['creado_por', 'actualizado_por']);
+            // dueno_id y requiere_cubrimiento van sueltos: no son texto libre (COLS_SIMPLES) ni un valor de catálogo (Campos::COLUMNA).
+            $cols = array_merge(self::COLS_SIMPLES, array_values(Campos::COLUMNA), ['dueno_id', 'requiere_cubrimiento', 'creado_por', 'actualizado_por']);
             $vals = [];
             foreach (self::COLS_SIMPLES as $c) {
                 // Las columnas de detalle de "Otros" solo llegan cuando aplican; el resto
@@ -54,6 +57,8 @@ final class Evento
             foreach (Campos::COLUMNA as $col) {
                 $vals[] = $ids[$col];
             }
+            $vals[] = (int) $datos['dueno_id'];
+            $vals[] = (int) ($datos['requiere_cubrimiento'] ?? 0);
             $vals[] = $usuarioId;
             $vals[] = $usuarioId;
             $pdo->prepare('INSERT INTO eventos (' . implode(', ', $cols) . ') VALUES (' . implode(', ', array_fill(0, count($cols), '?')) . ')')
@@ -86,6 +91,10 @@ final class Evento
                 $set[] = "$col = ?";
                 $vals[] = $ids[$col];
             }
+            $set[] = 'dueno_id = ?';
+            $vals[] = (int) $datos['dueno_id'];
+            $set[] = 'requiere_cubrimiento = ?';
+            $vals[] = (int) ($datos['requiere_cubrimiento'] ?? 0);
             $set[] = 'actualizado_por = ?';
             $vals[] = $usuarioId;
             $vals[] = $id;
@@ -223,12 +232,100 @@ final class Evento
         });
     }
 
+    /**
+     * Cambio rápido desde la ficha: si el evento pide cubrimiento o no. Solo enciende o apaga la
+     * petición (quién va se decide el día del evento), y queda en el historial.
+     */
+    public static function fijarCubrimiento(int $id, bool $pide, int $usuarioId): void
+    {
+        Database::transaccion(function (PDO $pdo) use ($id, $pide, $usuarioId): void {
+            $ev = self::porId($id);
+            if (!$ev) {
+                throw new RuntimeException('Evento no encontrado.');
+            }
+            if (!empty($ev['requiere_cubrimiento']) === $pide) {
+                return;
+            }
+            $pdo->prepare('UPDATE eventos SET requiere_cubrimiento = ?, actualizado_por = ? WHERE id = ?')->execute([$pide ? 1 : 0, $usuarioId, $id]);
+            Historial::registrar($id, $usuarioId, 'editar', ['cubrimiento' => ['antes' => $pide ? 'No' : 'Sí', 'despues' => $pide ? 'Sí' : 'No']]);
+        });
+    }
+
     public static function porId(int $id, bool $conEliminados = false): ?array
     {
         $st = Database::pdo()->prepare(self::SELECT . ' WHERE e.id = ?' . ($conEliminados ? '' : ' AND e.eliminado_en IS NULL'));
         $st->execute([$id]);
         $f = $st->fetch();
         return $f ?: null;
+    }
+
+    /**
+     * evento_id => [usuario_id => nombre] de quien está comprometido en los eventos vivos que
+     * tocan ese rango: el RESPONSABLE, y solo cuando el evento pide cubrimiento. No hay equipos
+     * asignados: quién va se decide el día del evento. Con $soloPersonas se recorta a esa gente.
+     *
+     * @return array<int, array<int, string>>
+     */
+    private static function comprometidosEnRango(string $ini, string $fin, string $soloPersonas = ''): array
+    {
+        $gente = array_values(array_unique(array_filter(array_map('intval', explode(',', $soloPersonas)))));
+        $filtro = $gente ? ' AND e.dueno_id IN (' . implode(', ', array_fill(0, count($gente), '?')) . ')' : '';
+        $st = Database::pdo()->prepare(
+            "SELECT e.id AS evento_id, e.dueno_id AS usuario_id, u.nombre
+               FROM eventos e
+               JOIN usuarios u ON u.id = e.dueno_id
+              WHERE e.eliminado_en IS NULL
+                AND e.requiere_cubrimiento = 1
+                AND e.fecha_fin >= ?
+                AND e.fecha_inicio <= ?" . $filtro
+        );
+        $st->execute(array_merge([$ini, $fin], $gente));
+        $out = [];
+        foreach ($st->fetchAll() as $f) {
+            $out[(int) $f['evento_id']][(int) $f['usuario_id']] = (string) $f['nombre'];
+        }
+        return $out;
+    }
+
+    /**
+     * usuario_id => eventos del año de los que es responsable. Alimenta el panel que sale al
+     * señalar un chip del filtro de personas.
+     *
+     * @return array<int, list<array{nombre:string,fecha_inicio:string,fecha_fin:string}>>
+     */
+    public static function eventosPorPersona(int $anio): array
+    {
+        $st = Database::pdo()->prepare(
+            "SELECT e.dueno_id AS quien, e.nombre, e.fecha_inicio, e.fecha_fin
+               FROM eventos e
+              WHERE e.eliminado_en IS NULL
+                AND e.estado <> 'cancelado' AND YEAR(e.fecha_inicio) = ?
+           ORDER BY e.fecha_inicio, e.id"
+        );
+        $st->execute([$anio]);
+        $out = [];
+        foreach ($st->fetchAll() as $r) {
+            $out[(int) $r['quien']][] = ['nombre' => (string) $r['nombre'], 'fecha_inicio' => (string) $r['fecha_inicio'], 'fecha_fin' => (string) $r['fecha_fin']];
+        }
+        return $out;
+    }
+
+    /**
+     * Ids de los eventos vivos del rango que piden cubrimiento. Alimenta el modo del mapa.
+     * @return array<int,true>
+     */
+    public static function pidenCubrimiento(string $ini, string $fin): array
+    {
+        $st = Database::pdo()->prepare(
+            'SELECT e.id FROM eventos e
+              WHERE e.requiere_cubrimiento = 1 AND e.eliminado_en IS NULL AND e.fecha_fin >= ? AND e.fecha_inicio <= ?'
+        );
+        $st->execute([$ini, $fin]);
+        $out = [];
+        foreach ($st->fetchAll() as $f) {
+            $out[(int) $f['id']] = true;
+        }
+        return $out;
     }
 
     /** Los mercados de un evento, el principal primero. Para pintar el formulario. */
@@ -411,6 +508,8 @@ final class Evento
      * Mapa de calor por día de un año, con los mismos filtros que el calendario.
      * Cuenta los eventos ACTIVOS cada día (los que empiezan antes y terminan después también cuentan),
      * que es lo que muestra la carga real del equipo; con $modo='inicio' cuenta solo el día de arranque.
+     * Con $modo='personas' cuenta GENTE comprometida (responsables de eventos que piden cubrimiento) y
+     * con $modo='sincubrir' solo pasan los eventos que piden cubrimiento.
      * Devuelve los 12 meses ya maquetados en celdas de 7 columnas (null = relleno antes del día 1).
      */
     public static function mapaCalor(int $anio, array $filtros = [], string $modo = 'activos', bool $conCancelados = false): array
@@ -422,10 +521,18 @@ final class Evento
 
         $porDia = [];
         $usados = [];
+        // Modo "personas": el mapa deja de contar EVENTOS y cuenta GENTE COMPROMETIDA, por id y
+        // no por nombre: la misma persona en dos eventos el mismo día cuenta una vez, no dos.
+        $comprometidos = self::comprometidosEnRango($ini, $fin, (string) ($f['persona'] ?? ''));
+        // Modo "piden cubrimiento": el mapa solo pinta esos eventos.
+        $piden = $modo === 'sincubrir' ? self::pidenCubrimiento($ini, $fin) : [];
         // Los cancelados se ocultan salvo que se pidan a propósito con el filtro de estado.
         $verCancelados = $conCancelados || str_contains((string) ($f['estado'] ?? ''), 'cancelado');
         foreach (self::enRango($ini, $fin, $f) as $e) {
             if (!$verCancelados && $e['estado'] === 'cancelado') {
+                continue;
+            }
+            if ($modo === 'sincubrir' && !isset($piden[(int) $e['id']])) {
                 continue;
             }
             $desde = max($e['fecha_inicio'], $ini);
@@ -441,10 +548,23 @@ final class Evento
             $tope = new DateTime($hasta);
             while ($d <= $tope) {
                 $k = $d->format('Y-m-d');
-                $porDia[$k]['n'] = ($porDia[$k]['n'] ?? 0) + 1;
+                if ($modo === 'personas') {
+                    foreach ($comprometidos[(int) $e['id']] ?? [] as $pid => $nombre) {
+                        $porDia[$k]['personas'][$pid] = $nombre;
+                    }
+                    $porDia[$k]['n'] = count($porDia[$k]['personas'] ?? []);
+                } else {
+                    $porDia[$k]['n'] = ($porDia[$k]['n'] ?? 0) + 1;
+                    $porDia[$k]['ids'][] = (int) $e['id'];
+                    foreach ($comprometidos[(int) $e['id']] ?? [] as $pid => $nombre) {
+                        $porDia[$k]['gente'][$pid] = $nombre;
+                    }
+                }
                 $areaEv = (int) $e['area_id'];
                 $porDia[$k]['areas'][$areaEv] = ($porDia[$k]['areas'][$areaEv] ?? 0) + 1;
-                if (count($porDia[$k]['nombres'] ?? []) < 8) {
+                if ($modo === 'personas') {
+                    $porDia[$k]['nombres'] = array_slice(array_values($porDia[$k]['personas'] ?? []), 0, 8);
+                } elseif (count($porDia[$k]['nombres'] ?? []) < 8) {
                     $porDia[$k]['nombres'][] = $e['nombre'];
                 }
                 $d->modify('+1 day');
@@ -463,6 +583,8 @@ final class Evento
                     'd'       => $dia,
                     'n'       => (int) ($porDia[$k]['n'] ?? 0),
                     'areas'   => $porDia[$k]['areas'] ?? [],
+                    'gente'   => array_slice(array_values($porDia[$k]['gente'] ?? []), 0, 10),
+                    'ids'     => array_values(array_unique($porDia[$k]['ids'] ?? [])),
                     'nombres' => $porDia[$k]['nombres'] ?? [],
                 ];
             }
@@ -489,14 +611,50 @@ final class Evento
                 $lunes->modify('+1 day');
             }
         }
+        if ($modo === 'personas') {
+            // Solo cuentan los días en los que hay alguien comprometido, y "acciones" pasa a ser
+            // personas distintas.
+            $porDia = array_filter($porDia, static fn(array $v): bool => ($v['n'] ?? 0) > 0);
+            $distintas = [];
+            foreach ($porDia as $v) {
+                foreach (array_keys($v['personas'] ?? []) as $pid) {
+                    $distintas[$pid] = true;
+                }
+            }
+            $usados = $distintas;
+        }
         $diasActivos = array_keys($porDia);
         sort($diasActivos);
+
+        // Ficha corta de cada evento del mapa: con esto el panel que sale al pulsar un día
+        // enseña la información completa sin volver a pedir nada al servidor.
+        $detalles = [];
+        foreach (self::enRango($ini, $fin, $f) as $e) {
+            $id = (int) $e['id'];
+            if (!isset($usados[$id]) && $modo !== 'personas') {
+                continue;
+            }
+            $detalles[$id] = [
+                'id'     => $id,
+                'nombre' => (string) $e['nombre'],
+                'inicio' => (string) $e['fecha_inicio'],
+                'fin'    => (string) $e['fecha_fin'],
+                'estado' => (string) $e['estado'],
+                'area'   => (string) $e['area'],
+                'color'  => (string) ($e['area_color'] ?: Campos::COLOR_NEUTRO),
+                'tipo'   => (string) $e['tipo_accion'],
+                'lugar'  => trim((string) $e['ciudad'] . ', ' . (string) $e['pais'], ', '),
+                'dueno'  => (string) ($e['dueno_nombre'] ?? ''),
+                'cubre'  => !empty($e['requiere_cubrimiento']),
+            ];
+        }
 
         return [
             'anio'  => $anio,
             'modo'  => $modo,
             'max'   => $conteos ? max($conteos) : 0,
             'meses' => $meses,
+            'detalles' => $detalles,
             'resumen' => [
                 'acciones'       => count($usados),
                 'dias_con_algo'  => count($porDia),
@@ -526,6 +684,79 @@ final class Evento
             $estados[$f['estado']] = (int) $f['n'];
         }
         return ['areas' => $areas, 'estados' => $estados];
+    }
+
+    /**
+     * Línea de tiempo: por cada área, sus eventos del rango (con responsable y si piden
+     * cubrimiento) y su gente activa; la vista pinta, por persona, los eventos que lidera.
+     * Filtros de la barra lateral: area_id acota las áreas; persona deja solo a esa gente (y
+     * sus áreas) con TODOS los eventos del área; el resto filtra los eventos como el calendario.
+     *
+     * @return array{inicio:string,fin:string,areas:list<array<string,mixed>>}
+     */
+    public static function lineaTiempo(string $ini, string $fin, array $filtros = []): array
+    {
+        $f = array_diff_key($filtros, ['anio' => 1, 'desde' => 1, 'hasta' => 1, 'persona' => 1]);
+        $verCancelados = str_contains((string) ($f['estado'] ?? ''), 'cancelado');
+        $porArea = [];
+        foreach (self::enRango($ini, $fin, $f) as $e) {
+            if (!$verCancelados && $e['estado'] === 'cancelado') {
+                continue;
+            }
+            $porArea[(int) $e['area_id']][] = [
+                'id'       => (int) $e['id'],
+                'nombre'   => (string) $e['nombre'],
+                'inicio'   => (string) $e['fecha_inicio'],
+                'fin'      => (string) $e['fecha_fin'],
+                'estado'   => (string) $e['estado'],
+                'area_id'  => (int) $e['area_id'],
+                'area'     => (string) $e['area'],
+                'dueno_id' => (int) $e['dueno_id'],
+                'dueno'    => (string) ($e['dueno_nombre'] ?? ''),
+                'cubre'    => !empty($e['requiere_cubrimiento']),
+            ];
+        }
+        $soloAreas = array_values(array_filter(array_map('intval', explode(',', (string) ($filtros['area_id'] ?? '')))));
+        $soloGente = array_values(array_filter(array_map('intval', explode(',', (string) ($filtros['persona'] ?? '')))));
+        $gentePorArea = [];
+        foreach (Usuario::activos() as $u) {
+            if ($soloGente && !in_array((int) $u['id'], $soloGente, true)) {
+                continue;
+            }
+            $gentePorArea[(int) ($u['area_id'] ?? 0)][] = ['id' => (int) $u['id'], 'nombre' => (string) $u['nombre']];
+        }
+        $areas = [];
+        foreach (Catalogo::areas() as $a) {
+            $aid = (int) $a['id'];
+            if ($soloAreas && !in_array($aid, $soloAreas, true)) {
+                continue;
+            }
+            $eventos = $porArea[$aid] ?? [];
+            $personas = $gentePorArea[$aid] ?? [];
+            // Con filtro de persona solo interesan las áreas de esa gente; sin filtro, las que tengan eventos.
+            if ($soloGente ? !$personas : !$eventos) {
+                continue;
+            }
+            $areas[] = ['id' => $aid, 'nombre' => (string) $a['valor'], 'color' => (string) ($a['color'] ?: Campos::COLOR_NEUTRO), 'eventos' => $eventos, 'personas' => $personas];
+        }
+        // Los administradores no tienen área pero pueden ser responsables de cualquier evento:
+        // bloque aparte, solo si lideran algo ese mes (o si se les filtra a propósito).
+        $admins = $gentePorArea[0] ?? [];
+        if ($admins && !$soloAreas) {
+            $ids = array_map(static fn(array $u): int => $u['id'], $admins);
+            $suyos = [];
+            foreach ($porArea as $lista) {
+                foreach ($lista as $e) {
+                    if (in_array($e['dueno_id'], $ids, true)) {
+                        $suyos[] = $e;
+                    }
+                }
+            }
+            if ($suyos || $soloGente) {
+                $areas[] = ['id' => 0, 'nombre' => 'Administradores', 'color' => Campos::COLOR_NEUTRO, 'eventos' => $suyos, 'personas' => $admins];
+            }
+        }
+        return ['inicio' => $ini, 'fin' => $fin, 'areas' => $areas];
     }
 
     // ---------- internos ----------
@@ -567,6 +798,15 @@ final class Evento
                 array_push($p, ...$estadosF);
             }
         }
+        // Filtrar por persona: los eventos de los que es responsable. Cualquiera de las elegidas,
+        // no todas a la vez: igual que el filtro de áreas.
+        if (!empty($f['persona'])) {
+            $gente = array_values(array_unique(array_filter(array_map('intval', explode(',', (string) $f['persona'])))));
+            if ($gente) {
+                $w[] = 'e.dueno_id IN (' . implode(', ', array_fill(0, count($gente), '?')) . ')';
+                array_push($p, ...$gente);
+            }
+        }
         if (!empty($f['creado_por'])) {
             $w[] = 'e.creado_por = ?';
             $p[] = (int) $f['creado_por'];
@@ -606,7 +846,7 @@ final class Evento
     private static function resumen(array $ev): array
     {
         $r = [];
-        foreach (array_merge(self::COLS_SIMPLES, Campos::CATALOGOS) as $c) {
+        foreach (array_merge(self::COLS_SIMPLES, Campos::CATALOGOS, ['dueno_nombre']) as $c) {
             $r[$c] = $ev[$c] ?? null;
         }
         return $r;
@@ -615,7 +855,7 @@ final class Evento
     private static function diferencias(array $antes, array $despues): array
     {
         $d = [];
-        foreach (array_merge(self::COLS_SIMPLES, Campos::CATALOGOS) as $c) {
+        foreach (array_merge(self::COLS_SIMPLES, Campos::CATALOGOS, ['dueno_nombre']) as $c) {
             if ((string) ($antes[$c] ?? '') !== (string) ($despues[$c] ?? '')) {
                 $d[$c] = ['antes' => $antes[$c] ?? null, 'despues' => $despues[$c] ?? null];
             }

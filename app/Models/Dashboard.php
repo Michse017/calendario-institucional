@@ -92,6 +92,171 @@ final class Dashboard
     }
 
     /**
+     * Informe de cubrimiento del año. Solo cuentan los eventos que piden cubrimiento, con su
+     * responsable (no hay equipos asignados):
+     *  - carga: responsables de eventos que piden cubrimiento, con cuántos y cuántos días
+     *  - responsables: quién lidera más eventos del año y cuántos de ellos piden cubrimiento
+     *  - por_area: eventos por área, y cuántos piden cubrimiento
+     *  - semanas: personas-día por semana ISO
+     *
+     * @return array{carga:list<array<string,mixed>>, responsables:list<array<string,mixed>>, por_area:list<array<string,mixed>>, semanas:list<array{semana:int,personas_dia:int}>}
+     */
+    public static function cubrimiento(int $anio): array
+    {
+        $pdo = Database::pdo();
+        $vivos = "e.eliminado_en IS NULL AND e.estado <> 'cancelado' AND YEAR(e.fecha_inicio) = ?";
+
+        $carga = $pdo->prepare(
+            "SELECT u.id, u.nombre, c.valor AS area, COUNT(*) AS eventos,
+                    COALESCE(SUM(DATEDIFF(e.fecha_fin, e.fecha_inicio) + 1), 0) AS dias
+               FROM eventos e
+               JOIN usuarios u ON u.id = e.dueno_id
+               LEFT JOIN catalogo_valores c ON c.id = u.area_id
+              WHERE $vivos AND e.requiere_cubrimiento = 1
+           GROUP BY u.id, u.nombre, c.valor
+           ORDER BY eventos DESC, dias DESC, u.nombre"
+        );
+        $carga->execute([$anio]);
+
+        $responsables = $pdo->prepare(
+            "SELECT u.id, u.nombre, c.valor AS area, COUNT(*) AS eventos,
+                    COALESCE(SUM(e.requiere_cubrimiento = 1), 0) AS con_cubrimiento
+               FROM eventos e
+               JOIN usuarios u ON u.id = e.dueno_id
+               LEFT JOIN catalogo_valores c ON c.id = u.area_id
+              WHERE $vivos
+           GROUP BY u.id, u.nombre, c.valor
+           ORDER BY eventos DESC, con_cubrimiento DESC, u.nombre"
+        );
+        $responsables->execute([$anio]);
+
+        $porArea = $pdo->prepare(
+            "SELECT ar.valor AS area, ar.color, COUNT(*) AS total, COALESCE(SUM(e.requiere_cubrimiento = 1), 0) AS piden
+               FROM eventos e
+               JOIN catalogo_valores ar ON ar.id = e.area_id
+              WHERE $vivos
+           GROUP BY ar.id, ar.valor, ar.color
+           ORDER BY total DESC, ar.valor"
+        );
+        $porArea->execute([$anio]);
+
+        // Personas-día por semana ISO: cada responsable cuenta una vez por día aunque lleve dos eventos.
+        $semanas = array_fill(1, 53, 0);
+        $ini = sprintf('%04d-01-01', $anio);
+        $fin = sprintf('%04d-12-31', $anio);
+        foreach (self::agendasEnRango($ini, $fin) as $eventos) {
+            $vistos = [];
+            foreach ($eventos as $e) {
+                $d = new \DateTime(max($e['fecha_inicio'], $ini));
+                $tope = new \DateTime(min($e['fecha_fin'], $fin));
+                while ($d <= $tope) {
+                    $k = $d->format('Y-m-d');
+                    if (!isset($vistos[$k])) {
+                        $vistos[$k] = true;
+                        $semanas[(int) $d->format('W')]++;
+                    }
+                    $d->modify('+1 day');
+                }
+            }
+        }
+        if ($semanas[53] === 0) {
+            unset($semanas[53]);
+        }
+        $listaSemanas = [];
+        foreach ($semanas as $n => $v) {
+            $listaSemanas[] = ['semana' => $n, 'personas_dia' => $v];
+        }
+
+        $entero = static fn(array $f, array $claves): array => array_merge($f, array_map('intval', array_intersect_key($f, array_flip($claves))));
+        return [
+            'carga'        => array_map(static fn(array $f): array => $entero($f, ['id', 'eventos', 'dias']), $carga->fetchAll()),
+            'responsables' => array_map(static fn(array $f): array => $entero($f, ['id', 'eventos', 'con_cubrimiento']), $responsables->fetchAll()),
+            'por_area'     => array_map(static fn(array $f): array => $entero($f, ['total', 'piden']), $porArea->fetchAll()),
+            'semanas'      => $listaSemanas,
+        ];
+    }
+
+    /**
+     * Quién está comprometido y quién disponible en un rango. "Disponible" significa solo que
+     * no es responsable de ningún evento con cubrimiento en esas fechas: no sabe de vacaciones
+     * ni de bajas. Cada persona trae su LISTA de eventos del rango, que es lo que la vista
+     * enseña al señalarla.
+     *
+     * @return list<array{id:int,nombre:string,area:?string,eventos:int,detalle:string,lista:list<array<string,mixed>>}>
+     */
+    public static function disponibilidad(string $inicio, string $fin): array
+    {
+        $gente = Database::pdo()->query(
+            "SELECT u.id, u.nombre, c.valor AS area
+               FROM usuarios u
+               LEFT JOIN catalogo_valores c ON c.id = u.area_id
+              WHERE u.activo = 1"
+        )->fetchAll();
+        $agendas = self::agendasEnRango($inicio, $fin);
+        $out = [];
+        foreach ($gente as $p) {
+            $lista = $agendas[(int) $p['id']] ?? [];
+            $out[] = [
+                'id'      => (int) $p['id'],
+                'nombre'  => (string) $p['nombre'],
+                'area'    => $p['area'],
+                'eventos' => count($lista),
+                'detalle' => implode(' | ', array_column($lista, 'nombre')),
+                'lista'   => $lista,
+            ];
+        }
+        // Los más comprometidos primero; a igualdad, por área y nombre.
+        usort($out, static fn(array $x, array $y): int =>
+            [$y['eventos'], (string) $x['area'], $x['nombre']] <=> [$x['eventos'], (string) $y['area'], $y['nombre']]);
+        return $out;
+    }
+
+    /**
+     * Agenda de UNA persona en un rango: cada evento con cubrimiento del que es responsable, con
+     * sus fechas. Con esto se sabe qué días tiene comprometidos y, por descarte, cuáles libres.
+     * @return list<array{id:int,nombre:string,fecha_inicio:string,fecha_fin:string,area:string,estado:string}>
+     */
+    public static function agendaDe(int $usuarioId, string $inicio, string $fin): array
+    {
+        return self::agendasEnRango($inicio, $fin)[$usuarioId] ?? [];
+    }
+
+    /**
+     * usuario_id => eventos vivos del rango de los que es RESPONSABLE y que piden cubrimiento.
+     * Es la misma regla que el mapa: sin equipos asignados, estar comprometido es liderar un
+     * evento que pide cubrimiento.
+     *
+     * @return array<int, list<array{id:int,nombre:string,fecha_inicio:string,fecha_fin:string,area:string,estado:string}>>
+     */
+    public static function agendasEnRango(string $inicio, string $fin): array
+    {
+        $st = Database::pdo()->prepare(
+            "SELECT e.dueno_id AS usuario_id, e.id, e.nombre, e.fecha_inicio, e.fecha_fin, e.estado, ar.valor AS area
+               FROM eventos e
+               JOIN catalogo_valores ar ON ar.id = e.area_id
+              WHERE e.requiere_cubrimiento = 1
+                AND e.eliminado_en IS NULL
+                AND e.estado <> 'cancelado'
+                AND e.fecha_fin >= ?
+                AND e.fecha_inicio <= ?
+           ORDER BY e.fecha_inicio, e.id"
+        );
+        $st->execute([$inicio, $fin]);
+        $out = [];
+        foreach ($st->fetchAll() as $f) {
+            $out[(int) $f['usuario_id']][] = [
+                'id'           => (int) $f['id'],
+                'nombre'       => (string) $f['nombre'],
+                'fecha_inicio' => (string) $f['fecha_inicio'],
+                'fecha_fin'    => (string) $f['fecha_fin'],
+                'area'         => (string) $f['area'],
+                'estado'       => (string) $f['estado'],
+            ];
+        }
+        return $out;
+    }
+
+    /**
      * Matriz de carga: una fila por área con acciones y doce columnas (los meses).
      * Deja fuera las áreas sin nada en el año, pero las devuelve aparte en 'sin_actividad'
      * para poder decirlo al pie de la tabla en vez de dibujar filas vacías.

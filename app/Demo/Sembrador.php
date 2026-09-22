@@ -123,6 +123,23 @@ final class Sembrador
         ['Lucía Ferrer', 'lucia.ferrer@meridiano.demo', 'usuario', 'Comunicaciones'],
     ];
 
+    /**
+     * El resto del personal: nombre, correo y área. No salen en la pantalla de acceso (allí
+     * bastan las tres cuentas de arriba para ver el modelo de permisos), pero sí como
+     * responsables de eventos, en la línea de tiempo y en Disponibilidad, que sin gente no
+     * enseñan nada. Comparten la contraseña de la demo.
+     */
+    private const PERSONAL = [
+        ['Marta Ibáñez',  'marta.ibanez@meridiano.demo',  'Programación'],
+        ['Diego Salas',   'diego.salas@meridiano.demo',   'Programación'],
+        ['Rocío Vidal',   'rocio.vidal@meridiano.demo',   'Producción'],
+        ['Tomás Herrera', 'tomas.herrera@meridiano.demo', 'Producción'],
+        ['Julián Ríos',   'julian.rios@meridiano.demo',   'Comunicaciones'],
+        ['Elena Cano',    'elena.cano@meridiano.demo',    'Educación'],
+        ['Pablo Ortega',  'pablo.ortega@meridiano.demo',  'Educación'],
+        ['Nuria Soler',   'nuria.soler@meridiano.demo',   'Administración'],
+    ];
+
     public const CONTRASENA_DEMO = 'demo1234';
 
     private const MESES = [
@@ -212,14 +229,19 @@ final class Sembrador
         return $n;
     }
 
+    /**
+     * Crea las cuentas que falten (se buscan por correo, así que repetirlo no duplica nada).
+     * Se hace SIEMPRE, también en un reinicio sin `--con-usuarios`: así una demostración ya
+     * desplegada recibe al personal nuevo sin tener que borrar las cuentas que había.
+     */
     private static function sembrarUsuarios(PDO $pdo, bool $forzar): int
     {
-        $vacio = (int) $pdo->query('SELECT COUNT(*) FROM usuarios')->fetchColumn() === 0;
-        if (!$forzar && !$vacio) {
-            return 0;
-        }
         $n = 0;
-        foreach (self::CUENTAS as [$nombre, $correo, $rol, $area]) {
+        $todas = array_merge(
+            self::CUENTAS,
+            array_map(static fn(array $p): array => [$p[0], $p[1], 'usuario', $p[2]], self::PERSONAL)
+        );
+        foreach ($todas as [$nombre, $correo, $rol, $area]) {
             if (Usuario::correoExiste($correo)) {
                 continue;
             }
@@ -227,6 +249,21 @@ final class Sembrador
             $n++;
         }
         return $n;
+    }
+
+    /**
+     * Gente activa por nombre de área, para repartir los eventos entre responsables. Los
+     * administradores no tienen área y quedan bajo la clave ''.
+     *
+     * @return array<string, list<int>>
+     */
+    private static function gentePorArea(): array
+    {
+        $out = [];
+        foreach (Usuario::activos() as $u) {
+            $out[(string) ($u['area_nombre'] ?? '')][] = (int) $u['id'];
+        }
+        return $out;
     }
 
     private static function idArea(PDO $pdo, string $nombre): int
@@ -246,6 +283,7 @@ final class Sembrador
         $finAnio = sprintf('%04d-12-31', $anio);
         $creados = 0;
         $cancelados = 0;
+        $gente = self::gentePorArea();
 
         $motivos = [
             'Aplazado a la próxima temporada por agenda de la compañía.',
@@ -269,6 +307,14 @@ final class Sembrador
 
                 $area = self::PESOS_AREA[array_rand(self::PESOS_AREA)];
                 [$nombre, $tipo, $publico, $objetivo] = self::PLANTILLAS[$area][array_rand(self::PLANTILLAS[$area])];
+
+                // Responsable: alguien del área, por turnos; si el área no tiene a nadie, el
+                // administrador. Y uno de cada tres eventos pide cubrimiento (alguien del área
+                // presente ese día). Se decide con $mes e $i, no con mt_rand, para no mover la
+                // secuencia aleatoria del resto de la semilla.
+                $candidatos = $gente[$area] ?? [$idAdmin];
+                $dueno = $candidatos[($mes + $i) % count($candidatos)];
+                $pideCubrimiento = ($mes * 7 + $i) % 3 === 0;
 
                 $duracion = match (true) {
                     $tipo === 'Exposición'           => mt_rand(8, 18),
@@ -300,6 +346,8 @@ final class Sembrador
 
                 $id = Evento::crear([
                     'nombre'            => $nombre . ' · ' . ucfirst(self::MESES[$mes]),
+                    'dueno_id'          => (string) $dueno,
+                    'requiere_cubrimiento' => $pideCubrimiento ? '1' : '0',
                     'fecha_inicio'      => $inicio,
                     'fecha_fin'         => $fin,
                     'estado'            => $estado,

@@ -136,4 +136,67 @@ final class Usuario
             ->query("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin' AND activo = 1")
             ->fetchColumn();
     }
+
+    /**
+     * Quién puede ser RESPONSABLE de un evento de esa área: la gente activa del área, más los
+     * administradores, que no tienen área y responden por cualquier evento.
+     *
+     * Sin área conocida (un admin creando un evento y todavía sin elegirla) la lista son TODOS
+     * los activos: si se limitara a los del área, el admin no vería a nadie y no podría asignar
+     * responsable a la primera. El área real se valida igual al guardar.
+     *
+     * @return list<array{id:int,nombre:string,rol:string,area_nombre:?string}>
+     */
+    public static function duenosPosibles(?int $areaId): array
+    {
+        if ($areaId === null) {
+            return Database::pdo()->query(
+                "SELECT u.id, u.nombre, u.rol, c.valor AS area_nombre FROM usuarios u
+                   LEFT JOIN catalogo_valores c ON c.id = u.area_id AND c.campo = 'area'
+                  WHERE u.activo = 1
+               ORDER BY u.rol = 'admin' DESC, c.valor, u.nombre"
+            )->fetchAll();
+        }
+        $st = Database::pdo()->prepare(
+            "SELECT u.id, u.nombre, u.rol, c.valor AS area_nombre FROM usuarios u
+               LEFT JOIN catalogo_valores c ON c.id = u.area_id AND c.campo = 'area'
+              WHERE u.activo = 1 AND (u.rol = 'admin' OR u.area_id = ?)
+           ORDER BY u.rol = 'admin', u.nombre"
+        );
+        $st->execute([$areaId]);
+        return $st->fetchAll();
+    }
+
+    /**
+     * Segunda barrera, contra la base: el responsable existe, está activo y pertenece al área del
+     * evento. Salta sobre todo cuando un ADMIN mueve un evento de un área a otra y el responsable
+     * se queda fuera; un usuario normal no puede cambiar el área del evento.
+     *
+     * @return array<string,string> vacío si está bien
+     */
+    public static function errorDueno(int $duenoId, ?int $areaId): array
+    {
+        foreach (self::duenosPosibles($areaId) as $d) {
+            if ((int) $d['id'] === $duenoId) {
+                return [];
+            }
+        }
+        return ['dueno_id' => 'Esa persona no pertenece al área del evento. Elige a otra como responsable.'];
+    }
+
+    /**
+     * Toda la gente activa, para los filtros de persona (calendario, lista, disponibilidad) y para
+     * la línea de tiempo. Los administradores van primero, que son los que no tienen área.
+     *
+     * @return list<array{id:int,nombre:string,rol:string,area_id:?int,area_nombre:?string}>
+     */
+    public static function activos(): array
+    {
+        return Database::pdo()->query(
+            "SELECT u.id, u.nombre, u.rol, u.area_id, c.valor AS area_nombre FROM usuarios u
+               LEFT JOIN catalogo_valores c ON c.id = u.area_id AND c.campo = 'area'
+              WHERE u.activo = 1
+           ORDER BY c.valor IS NULL DESC, c.valor, u.nombre"
+        )->fetchAll();
+    }
 }

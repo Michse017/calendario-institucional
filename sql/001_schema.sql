@@ -103,6 +103,8 @@ CREATE TABLE IF NOT EXISTS `eventos` (
   `evidencia_url`      VARCHAR(500) NOT NULL COMMENT 'URL, N/A o Pendiente',
   `reuniones`          VARCHAR(60) NOT NULL COMMENT 'entero, N/A o Pendiente',
   `creado_por`         INT NOT NULL COMMENT 'usuarios.id',
+  `dueno_id`           INT NOT NULL COMMENT 'usuarios.id: quien responde por el evento; no tiene por qué ser quien lo creó',
+  `requiere_cubrimiento` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = hace falta que alguien del área esté presente; quién va se decide el día del evento',
   `actualizado_por`    INT NOT NULL COMMENT 'usuarios.id',
   `creado_en`          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -114,6 +116,7 @@ CREATE TABLE IF NOT EXISTS `eventos` (
   KEY `idx_eliminado` (`eliminado_en`),
   KEY `idx_creado_por` (`creado_por`),
   KEY `idx_area_evento` (`area_id`),
+  KEY `idx_dueno` (`dueno_id`),
   CONSTRAINT `fk_ev_tipo`   FOREIGN KEY (`tipo_accion_id`) REFERENCES `catalogo_valores` (`id`),
   CONSTRAINT `fk_ev_seg`    FOREIGN KEY (`segmento_id`)    REFERENCES `catalogo_valores` (`id`),
   CONSTRAINT `fk_ev_area`   FOREIGN KEY (`area_id`)        REFERENCES `catalogo_valores` (`id`),
@@ -121,7 +124,8 @@ CREATE TABLE IF NOT EXISTS `eventos` (
   CONSTRAINT `fk_ev_pais`   FOREIGN KEY (`pais_id`)        REFERENCES `catalogo_valores` (`id`),
   CONSTRAINT `fk_ev_ciudad` FOREIGN KEY (`ciudad_id`)      REFERENCES `catalogo_valores` (`id`),
   CONSTRAINT `fk_ev_merc`   FOREIGN KEY (`mercado_id`)     REFERENCES `catalogo_valores` (`id`),
-  CONSTRAINT `fk_ev_org`    FOREIGN KEY (`organizador_id`) REFERENCES `catalogo_valores` (`id`)
+  CONSTRAINT `fk_ev_org`    FOREIGN KEY (`organizador_id`) REFERENCES `catalogo_valores` (`id`),
+  CONSTRAINT `fk_ev_dueno`  FOREIGN KEY (`dueno_id`)       REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------

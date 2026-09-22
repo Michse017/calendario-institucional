@@ -12,6 +12,7 @@ use App\Core\Response;
 use App\Core\Validator;
 use App\Models\Catalogo;
 use App\Models\Evento;
+use App\Models\Usuario;
 use RuntimeException;
 
 final class EventoController extends Controller
@@ -109,6 +110,21 @@ final class EventoController extends Controller
         Response::redirigir(url('calendario', ['evento' => (int) $ev['id'], 'fecha' => $ev['fecha_inicio']]));
     }
 
+    /** POST eventos/cubrimiento&id= con `valor` 1|0 (misma área o admin): desde la ficha, sin pasar por el formulario. */
+    public function cubrimiento(Request $req): void
+    {
+        Csrf::exigir();
+        $ev = $this->cargar($req->int('id'));
+        $pide = (string) $req->post('valor', '') === '1';
+        try {
+            Evento::fijarCubrimiento((int) $ev['id'], $pide, Auth::usuario()['id']);
+            flash('ok', $pide ? t('El evento pide cubrimiento.') : t('El evento ya no pide cubrimiento.'));
+        } catch (RuntimeException $e) {
+            flash('error', $e->getMessage());
+        }
+        Response::redirigir(url('calendario', ['evento' => (int) $ev['id'], 'fecha' => $ev['fecha_inicio']]));
+    }
+
     public function lista(Request $req): void
     {
         $filtros = ApiController::filtros($req);
@@ -121,6 +137,7 @@ final class EventoController extends Controller
             'tieneArea' => Auth::usuario()['area_id'] > 0,
             'orden' => ($filtros['orden'] ?? 'asc') === 'desc' ? 'desc' : 'asc',
             'areas' => Catalogo::areas(), 'tipos' => Catalogo::listar('tipo_accion', true), 'segmentos' => Catalogo::listar('segmento', true), 'anios' => Evento::anios(),
+            'usuarios' => Usuario::activos(),
         ]);
     }
 
@@ -185,12 +202,20 @@ final class EventoController extends Controller
                 $r['ok'] = false;
                 $r['errores'] = $cerrados;
             }
+            // Y que el responsable pertenezca al área con la que de verdad se va a guardar. Importa
+            // cuando un admin mueve el evento de área y el responsable se queda fuera.
+            $malDueno = Usuario::errorDueno((int) ($r['datos']['dueno_id'] ?? 0), Catalogo::idArea((string) ($r['datos']['area'] ?? '')));
+            if ($malDueno) {
+                $r['ok'] = false;
+                $r['errores'] += $malDueno;
+            }
         }
         $sug = $r['ok'] ? Catalogo::parecidosPendientes($r['datos'], (array) ($in['confirmar'] ?? [])) : [];
         if (!$r['ok'] || $sug) {
             $valores = $evento === null ? $in : $in + ['id' => $evento['id'], 'cancelacion_motivo' => $evento['cancelacion_motivo']];
             // Lo que ya había elegido, para que el formulario no se lo borre al repintar.
             $valores['mercados'] = Validator::mercadosDelEnvio($in);
+            $valores['requiere_cubrimiento'] = !empty($in['requiere_cubrimiento']);
             $this->formulario($modo, $valores, $r['errores'], $sug);
             return;
         }
@@ -229,6 +254,11 @@ final class EventoController extends Controller
             'accion'       => $modo === 'crear' ? url('eventos/crear') : url('eventos/actualizar', ['id' => (int) ($valores['id'] ?? 0)]),
             'esAdmin'      => $u['rol'] === 'admin',
             'areaUsuario'  => $u['area_nombre'],
+            // Quién puede ser responsable depende del área del evento, que para un usuario normal
+            // es siempre la suya (areaPermitida() no deja que salga del POST).
+            'duenos'       => Usuario::duenosPosibles(Catalogo::idArea((string) ($valores['area'] ?? $u['area_nombre']))),
+            'duenoActual'  => (int) ($valores['dueno_id'] ?? $u['id']),
+            'cubrimiento'  => !empty($valores['requiere_cubrimiento']),
             'opciones'     => Catalogo::opcionesCerradas(),
             'cancelado'    => ($valores['estado'] ?? '') === 'cancelado',
             'motivo'       => (string) ($valores['cancelacion_motivo'] ?? ''),

@@ -21,6 +21,11 @@ $enlace = static function (string $v): string {
   <div class="mb-3 flex flex-wrap items-center gap-2">
     <span class="chip" style="background:color-mix(in srgb,<?= h($color) ?> 14%,transparent);color:<?= h($color) ?>"><?= h(t($ev['area'])) ?></span>
     <span class="badge-estado" style="--c:<?= estado_color($ev['estado']) ?>"><?= h(t(estado_etiqueta($ev['estado']))) ?></span>
+    <?php if (!empty($ev['requiere_cubrimiento'])): ?>
+    <span class="badge-estado" style="--c:#1F3F7A" title="<?= h(t('Este evento pide cubrimiento')) ?>">⚑ <?= h(t('Pide cubrimiento')) ?></span>
+    <?php else: ?>
+    <span class="badge-estado" style="--c:#8A8F98" title="<?= h(t('Este evento no pide cubrimiento')) ?>"><?= h(t('No pide cubrimiento')) ?></span>
+    <?php endif; ?>
   </div>
   <h2 class="font-serif text-2xl leading-tight<?= $cancelado ? ' line-through text-gris' : '' ?>"><?= h($ev['nombre']) ?></h2>
   <p class="mt-1 text-sm text-gris"><?= h(dia_semana_corto($ev['fecha_inicio'])) ?> <?= h(rango_fechas($ev['fecha_inicio'], $ev['fecha_fin'])) ?> · <?= h($ev['ciudad']) ?>, <?= h($ev['pais']) ?></p>
@@ -30,9 +35,9 @@ $enlace = static function (string $v): string {
 
   <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
     <?php foreach (['tipo_accion', 'segmento', 'mercado', 'organizador', 'linea_estrategica'] as $c): ?>
-    <div class="<?= $c === 'linea_estrategica' ? 'col-span-2' : '' ?>">
-      <dt class="label mb-0.5"><?= h(t(Campos::ETIQUETA[$c])) ?></dt>
-      <dd class="font-medium"><?= h($c === 'mercado' && !empty($ev['mercados']) ? implode(', ', array_map('t', explode(' | ', (string) $ev['mercados']))) : t(catalogo_mostrar($ev, $c))) ?></dd>
+    <div class="cro-ficha-campo <?= $c === 'linea_estrategica' ? 'col-span-2' : '' ?>">
+      <dt class="cro-ficha-rotulo"><?= h(t(Campos::ETIQUETA[$c])) ?></dt>
+      <dd class="cro-ficha-dato"><?= h($c === 'mercado' && !empty($ev['mercados']) ? implode(', ', array_map('t', explode(' | ', (string) $ev['mercados']))) : t(catalogo_mostrar($ev, $c))) ?></dd>
     </div>
     <?php endforeach; ?>
   </dl>
@@ -47,12 +52,17 @@ $enlace = static function (string $v): string {
   </div>
 
   <dl class="mt-4 grid grid-cols-3 gap-3 text-sm">
-    <div><dt class="label mb-0.5"><?= h(t('Contactos')) ?></dt><dd><?= $enlace($ev['contactos_url']) ?></dd></div>
-    <div><dt class="label mb-0.5"><?= h(t('Aforo estimado')) ?></dt><dd class="font-medium"><?= h($ev['reuniones']) ?></dd></div>
-    <div><dt class="label mb-0.5"><?= h(t('Evidencia')) ?></dt><dd><?= $enlace($ev['evidencia_url']) ?></dd></div>
+    <div class="cro-ficha-campo"><dt class="cro-ficha-rotulo"><?= h(t('Contactos')) ?></dt><dd class="cro-ficha-dato"><?= $enlace($ev['contactos_url']) ?></dd></div>
+    <div class="cro-ficha-campo"><dt class="cro-ficha-rotulo"><?= h(t('Aforo estimado')) ?></dt><dd class="cro-ficha-dato"><?= h($ev['reuniones']) ?></dd></div>
+    <div class="cro-ficha-campo"><dt class="cro-ficha-rotulo"><?= h(t('Evidencia')) ?></dt><dd class="cro-ficha-dato"><?= $enlace($ev['evidencia_url']) ?></dd></div>
   </dl>
 
-  <p class="mt-5 text-xs text-gris"><?= h(t('Creado por')) ?> <?= h($ev['creado_por_nombre']) ?> · <?= h(fecha_humana(substr($ev['creado_en'], 0, 10))) ?><?= $ev['actualizado_en'] !== $ev['creado_en'] ? ' · ' . h(t('editado')) . ' ' . h(fecha_humana(substr($ev['actualizado_en'], 0, 10))) : '' ?></p>
+  <dl class="mt-5 text-sm">
+    <dt class="cro-ficha-rotulo"><?= h(t('Responsable')) ?></dt>
+    <dd class="cro-ficha-dato"><?= h($ev['dueno_nombre'] ?? '—') ?></dd>
+  </dl>
+
+  <p class="mt-2 text-xs text-gris"><?= h(t('Creado por')) ?> <?= h($ev['creado_por_nombre']) ?> · <?= h(fecha_humana(substr($ev['creado_en'], 0, 10))) ?><?= $ev['actualizado_en'] !== $ev['creado_en'] ? ' · ' . h(t('editado')) . ' ' . h(fecha_humana(substr($ev['actualizado_en'], 0, 10))) : '' ?></p>
 
   <?php if ($puedeEditar): ?>
   <div class="mt-4 flex gap-2">
@@ -65,6 +75,21 @@ $enlace = static function (string $v): string {
     <?php endif; ?>
   </div>
   <?php if (!$cancelado): ?>
+  <!-- Cambio rápido de cubrimiento, calcado del de estado: un POST y de vuelta al calendario. -->
+  <form method="post" action="<?= h(url('eventos/cubrimiento', ['id' => (int) $ev['id']])) ?>" class="mt-4 rounded-xl border border-borde p-3 dark:border-noche-borde">
+    <?= csrf_campo() ?>
+    <p class="label mb-1.5"><?= h(t('Cubrimiento')) ?></p>
+    <div class="flex flex-wrap gap-1.5">
+      <?php $pide = !empty($ev['requiere_cubrimiento']); ?>
+      <button type="submit" name="valor" value="1" class="badge-estado cro-estado-btn border<?= $pide ? ' font-bold cursor-not-allowed' : ' border-transparent' ?>"
+              style="--c:#1F3F7A<?= $pide ? ';border-color:#1F3F7A' : '' ?>"<?= $pide ? ' disabled aria-current="true"' : '' ?>
+              title="<?= $pide ? h(t('Ya pide cubrimiento')) : h(t('Marcar que pide cubrimiento')) ?>">⚑ <?= h(t('Pide cubrimiento')) ?></button>
+      <button type="submit" name="valor" value="0" class="badge-estado cro-estado-btn border<?= !$pide ? ' font-bold cursor-not-allowed' : ' border-transparent' ?>"
+              style="--c:#8A8F98<?= !$pide ? ';border-color:#8A8F98' : '' ?>"<?= !$pide ? ' disabled aria-current="true"' : '' ?>
+              title="<?= !$pide ? h(t('No pide cubrimiento')) : h(t('Marcar que no pide cubrimiento')) ?>"><?= h(t('No pide')) ?></button>
+    </div>
+    <p class="mt-2 text-xs text-gris"><?= h(t('Quién va se decide el día del evento. Queda en el historial.')) ?></p>
+  </form>
   <form method="post" action="<?= h(url('eventos/estado', ['id' => (int) $ev['id']])) ?>" class="mt-4 rounded-xl border border-borde p-3 dark:border-noche-borde">
     <?= csrf_campo() ?>
     <p class="label mb-1.5"><?= h(t('Cambiar estado')) ?></p>

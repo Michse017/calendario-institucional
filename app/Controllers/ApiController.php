@@ -80,6 +80,9 @@ final class ApiController extends Controller
                 'estado' => $e['estado'], 'estadoColor' => estado_color($e['estado']), 'area' => $e['area'], 'areaColor' => $colorArea,
                 'cancelado' => $cancelado, 'tipo' => $e['tipo_accion'], 'ciudad' => $e['ciudad'], 'pais' => $e['pais'],
                 'puedeEditar' => Auth::puedeEditar($u, $e),
+                // Para el aviso al señalar el evento en el calendario.
+                'dueno'  => (string) ($e['dueno_nombre'] ?? ''),
+                'cubre'  => !empty($e['requiere_cubrimiento']),
             ],
         ];
     }
@@ -163,15 +166,34 @@ final class ApiController extends Controller
         ]);
     }
 
-    /** GET ?r=api/mapa&anio=2026&modo=activos|inicio&cancelados=1&[filtros] → mapa de calor por día */
+    /** GET ?r=api/mapa&anio=2026&modo=activos|inicio|personas|sincubrir&cancelados=1&[filtros] → mapa de calor por día */
     public function mapa(Request $req): void
     {
         $anio = $req->int('anio', (int) date('Y'));
         if ($anio < 2000 || $anio > 2100) {
             Response::json(['ok' => false, 'error' => 'Año fuera de rango.'], 422);
         }
-        $modo = $req->get('modo') === 'inicio' ? 'inicio' : 'activos';
+        $modo = in_array($req->get('modo'), ['inicio', 'personas', 'sincubrir'], true) ? (string) $req->get('modo') : 'activos';
         Response::json(['ok' => true] + Evento::mapaCalor($anio, self::filtros($req), $modo, (bool) $req->get('cancelados')));
+    }
+
+    /** GET ?r=api/linea&inicio=&fin=&[filtros] → línea de tiempo por área (eventos + gente), máximo dos meses */
+    public function linea(Request $req): void
+    {
+        $ini = substr((string) $req->get('inicio', ''), 0, 10);
+        $fin = substr((string) $req->get('fin', ''), 0, 10);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ini) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fin) || $fin < $ini) {
+            Response::json(['ok' => false, 'error' => 'Rango de fechas inválido.'], 422);
+        }
+        if ((strtotime($fin) - strtotime($ini)) / 86400 > 62) {
+            Response::json(['ok' => false, 'error' => 'La línea de tiempo muestra como máximo dos meses.'], 422);
+        }
+        $linea = Evento::lineaTiempo($ini, $fin, self::filtros($req));
+        // Los nombres de área vienen sembrados y tienen traducción; los de la gente, no.
+        foreach ($linea['areas'] as $i => $a) {
+            $linea['areas'][$i]['nombre'] = t($a['nombre']);
+        }
+        Response::json(['ok' => true] + $linea);
     }
 
     /** GET ?r=api/dashboard&anio=2026 */

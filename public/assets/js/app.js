@@ -379,7 +379,7 @@ document.addEventListener('alpine:init', () => {
   }));
 
   Alpine.data('calendarioApp', (cfg) => ({
-    filtros: { area_id: '', tipo_accion_id: '', segmento_id: '', estado: '', mios: '', ...cfg.filtros },
+    filtros: { area_id: '', tipo_accion_id: '', segmento_id: '', estado: '', persona: '', mios: '', ...cfg.filtros },
     proximos: cfg.proximos || [],
     txt: cfg.txt || {},
     cal: null, vista: cfg.vistaInicial || 'dayGridMonth', titulo: '',
@@ -399,6 +399,81 @@ document.addEventListener('alpine:init', () => {
     })(),
     mapa: { meses: [], max: 0, resumen: {} },
     modoMapa: 'activos',
+    qPersona: '', abiertoPersona: false, activoPersona: 0, personaPorQuitar: null,
+    verAgenda: '',
+    dia: null, diaEvento: null, vistazo: null,
+    // --- Vista "Línea de tiempo": por área, sus eventos y su gente, día a día ---
+    // FullCalendar sigue siendo el reloj (oculto, en vista de mes): Hoy, ‹ › y el título
+    // valen igual, y datesSet() vuelve a pedir la línea cuando cambia el mes.
+    linea: { dias: [], areas: [], total: 0, n: 0 },
+    focoLinea: 0,   // evento señalado: sus barras se iluminan en todas las filas
+    ymd(d) { const p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); },
+    aFechaLocal(s) { const [a, m, d] = String(s).split('-').map(Number); return new Date(a, m - 1, d); },
+    rangoCorto(a, b) { return a === b ? this.fechaCorta(a) : this.fechaCorta(a) + ' – ' + this.fechaCorta(b); },
+    async cargarLinea() {
+      const v = this.cal && this.cal.view;
+      if (!v) return;
+      const params = { inicio: this.ymd(v.currentStart), fin: this.ymd(new Date(v.currentEnd.getTime() - 86400000)) };
+      for (const [k, val] of Object.entries(this.filtros)) if (val !== '' && val !== null) params[k] = val;
+      const j = await CRO.fetchJson('api/linea', params);
+      if (j && j.ok) { this.linea = this.armarLinea(j); }
+    },
+    /**
+     * Prepara lo que pinta la plantilla: los días del mes (con fin de semana y hoy), y por
+     * área sus eventos y su gente ya colocados en columnas y carriles. Dos eventos del área
+     * que se pisan van en dos carriles; lo mismo los que lidera una persona.
+     */
+    armarLinea(j) {
+      const letras = this.txt.diasSemana || ['L', 'M', 'X', 'J', 'V', 'S', 'D'];   // lunes primero
+      const dias = [];
+      for (let d = this.aFechaLocal(j.inicio), tope = this.aFechaLocal(j.fin); d <= tope; d.setDate(d.getDate() + 1)) {
+        const f = this.ymd(d);
+        dias.push({ f, d: d.getDate(), l: letras[(d.getDay() + 6) % 7], finde: d.getDay() === 0 || d.getDay() === 6, hoy: f === this.fechaHoy });
+      }
+      const n = dias.length;
+      const col = (f) => dias.findIndex((x) => x.f === f) + 1;
+      const c1 = (f) => (f < j.inicio ? 1 : col(f));
+      const c2 = (f) => (f > j.fin ? n : col(f));
+      // Carriles: se recorren por inicio y cada barra va al primer carril que ya quedó libre.
+      const carriles = (barras) => {
+        const fines = [];
+        for (const b of [...barras].sort((x, y) => x.c1 - y.c1 || y.c2 - x.c2)) {
+          let k = fines.findIndex((fin) => fin < b.c1);
+          if (k === -1) { k = fines.length; fines.push(0); }
+          fines[k] = b.c2;
+          b.carril = k + 1;
+        }
+        return Math.max(1, fines.length);
+      };
+      let total = 0;
+      const areas = j.areas.map((a) => {
+        const eventos = a.eventos.map((e) => ({ ...e, c1: c1(e.inicio), c2: c2(e.fin) }));
+        total += eventos.length;
+        const carrilesEv = carriles(eventos);
+        const personas = a.personas.map((p) => {
+          const barras = eventos.filter((e) => e.dueno_id === p.id).map((e) => ({ ...e }));   // lo que lidera
+          return { ...p, barras, carriles: carriles(barras), en: barras.length };
+        });
+        return { ...a, eventos, carriles: carrilesEv, personas };
+      });
+      return { dias, areas, total, n, inicio: j.inicio, fin: j.fin };
+    },
+    /** Pista al señalar una barra: reutiliza el recuadro del mapa (vistazo). */
+    vistazoLinea(b, el) {
+      this.focoLinea = b.id;
+      const r = el.getBoundingClientRect();
+      const ancho = 250;
+      const izq = Math.min(Math.max(r.left, 8), window.innerWidth - ancho - 8);
+      const cabeDebajo = window.innerHeight - r.bottom > 160;
+      const pos = cabeDebajo
+        ? `left:${Math.round(izq)}px; top:${Math.round(r.bottom + 6)}px;`
+        : `left:${Math.round(izq)}px; bottom:${Math.round(window.innerHeight - r.top + 6)}px;`;
+      const lineas = [];
+      if (b.dueno) lineas.push(this.txt.responsable + ': ' + b.dueno);
+      lineas.push(b.cubre ? '⚑ ' + this.txt.pideCubrimiento : this.txt.noPideCubrimiento);
+      this.vistazo = { pos: `width:${ancho}px; ` + pos, fecha: b.nombre, cuenta: this.rangoCorto(b.inicio, b.fin), lineas, gente: '', pie: this.txt.clicFicha };
+    },
+    salirLinea() { this.vistazo = null; this.focoLinea = 0; },
     resaltado: [],   // fechas resaltadas al pulsar una de las cifras del resumen
     foco: '',
     init() {
@@ -438,7 +513,7 @@ document.addEventListener('alpine:init', () => {
         eventAllow: (span, ev) => !!ev.extendedProps.puedeEditar,
         eventDrop: (i) => this.mover(i),
         eventResize: (i) => this.mover(i),
-        datesSet: (a) => { this.titulo = a.view.title; },
+        datesSet: (a) => { this.titulo = a.view.title; if (this.vista === 'linea') this.cargarLinea(); },
         moreLinkContent: (a) => `+${a.num} ${this.txt.mas}`,
         noEventsContent: this.txt.sinEventosPeriodo,
       });
@@ -458,9 +533,15 @@ document.addEventListener('alpine:init', () => {
     chip(arg) {
       const e = arg.event, p = e.extendedProps;
       const punto = p.cancelado ? p.areaColor : p.estadoColor;   // cancelado: chip gris, el punto conserva el color del área
-      const clase = p.cancelado ? 'cro-chip cro-chip-cancelado' : 'cro-chip';
-      const titulo = CRO.esc(e.title) + (p.cancelado ? ' (cancelado)' : '');
-      return { html: `<div class="${clase}" style="--c:${e.backgroundColor}" title="${titulo}"><span class="cro-punto" style="background:${punto}"></span><span class="cro-chip-txt">${CRO.esc(e.title)}</span></div>` };
+      // Cubrimiento a la vista, sin alarma: aro y ⚑ cuando lo pide. Quién va se decide el día del evento.
+      const clase = ['cro-chip', p.cancelado ? 'cro-chip-cancelado' : '', p.cubre ? 'cro-chip-cubre' : ''].filter(Boolean).join(' ');
+      // Al señalar el evento se ve quién responde por él: lo que hace falta para decidir sin abrir la ficha.
+      const lineas = [CRO.esc(e.title) + (p.cancelado ? ' (' + this.txt.cancelado + ')' : '')];
+      if (p.dueno) { lineas.push(this.txt.responsable + ': ' + CRO.esc(p.dueno)); }
+      if (p.cubre) { lineas.push('⚑ ' + this.txt.pideCubrimiento); }
+      const titulo = lineas.join('&#10;');
+      const marca = p.cubre ? '<span class="cro-chip-marca" aria-hidden="true">⚑</span>' : '';
+      return { html: `<div class="${clase}" style="--c:${e.backgroundColor}" title="${titulo}"><span class="cro-punto" style="background:${punto}"></span><span class="cro-chip-txt">${CRO.esc(e.title)}</span>${marca}</div>` };
     },
     alternar(clave, valor) { this.filtros[clave] = this.filtros[clave] == valor ? '' : valor; this.aplicar(); },
     // ¿Hay algún filtro puesto? El botón "Limpiar filtros" solo aparece cuando lo hay.
@@ -473,6 +554,7 @@ document.addEventListener('alpine:init', () => {
       this.cal.refetchEvents();
       this.cargarProximos();
       if (this.vista === 'anio') this.cargarMapa();
+      if (this.vista === 'linea') this.cargarLinea();
     },
     // --- Vista "Año": mapa de calor por día ---
     async cargarMapa() {
@@ -517,6 +599,67 @@ document.addEventListener('alpine:init', () => {
       this.aplicar();
     },
     limpiarFiltro(clave) { this.filtros[clave] = ''; this.aplicar(); },
+    /** Eventos del año de una persona, con las fechas ya formateadas para el panel. */
+    agendaDe(id) {
+      const lista = (cfg.agendas || {})[String(id)] || [];
+      const corto = (f) => { const [, m, d] = String(f).slice(0, 10).split('-'); return d + '/' + m; };
+      return lista.map((e) => ({
+        nombre: e.nombre,
+        fechas: e.fecha_inicio === e.fecha_fin ? corto(e.fecha_inicio) : corto(e.fecha_inicio) + '–' + corto(e.fecha_fin),
+      }));
+    },
+    /** Personas que quedan por elegir, filtradas por lo escrito (nombre o área). */
+    get candidatosPersona() {
+      const q = CRO.norm(this.qPersona);
+      const ya = this.sel('persona');
+      return (cfg.usuarios || [])
+        .filter((u) => !ya.includes(String(u.id)))
+        .filter((u) => q === '' || CRO.norm(u.nombre).includes(q) || CRO.norm(u.area || '').includes(q))
+        .slice(0, 12);
+    },
+    anadirPersona(id) {
+      this.agregar('persona', String(id));
+      this.qPersona = '';
+      this.activoPersona = 0;
+      this.abiertoPersona = true;   // sigue abierto para encadenar varios sin tocar el ratón
+    },
+    /**
+     * Enter añade la persona resaltada y se queda en el campo; se frena la propagación además del
+     * comportamiento por defecto para que Enter no dispare ningún otro atajo de la vista. Retroceso
+     * con el campo vacío avisa a la primera y quita a la segunda: una sola tecla no borra a nadie en silencio.
+     */
+    teclaPersona(e) {
+      if (e.key === 'Backspace' && this.qPersona === '' && this.sel('persona').length) {
+        e.preventDefault();
+        const ids = this.sel('persona');
+        const ultimo = ids[ids.length - 1];
+        if (this.personaPorQuitar === ultimo) { this.alternarMulti('persona', ultimo); this.personaPorQuitar = null; }
+        else { this.personaPorQuitar = ultimo; }
+        return;
+      }
+      this.personaPorQuitar = null;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        const lista = this.candidatosPersona;
+        if (lista.length) { this.anadirPersona(lista[Math.min(this.activoPersona, lista.length - 1)].id); }
+        return;
+      }
+      if (e.key === 'Escape') { this.abiertoPersona = false; return; }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.abiertoPersona = true;
+        this.activoPersona = Math.min(this.activoPersona + 1, Math.max(this.candidatosPersona.length - 1, 0));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        this.activoPersona = Math.max(this.activoPersona - 1, 0);
+      }
+    },
+    /** Nombre de la persona elegida, para el chip de quitar el filtro. */
+    nombrePersona(id) {
+      const u = (cfg.usuarios || []).find((x) => String(x.id) === String(id));
+      return u ? u.nombre : this.txt.personaFallback;
+    },
     nombreDe(clave, id) {
       const nombres = { area_id: cfg.areaNombres, tipo_accion_id: cfg.tipoNombres, segmento_id: cfg.segmentoNombres }[clave];
       return (nombres && nombres[String(id)]) || String(id);
@@ -535,7 +678,35 @@ document.addEventListener('alpine:init', () => {
       return `rgba(${r},${g},${b},${alfa})`;
     },
     // Con una sola área marcada, la rampa toma su color; con ninguna o varias, la rampa cálida.
+    /** Los cuatro modos del mapa, con nombre y explicación (el segmentado de la barra). */
+    get modosMapa() {
+      return [
+        { id: 'activos', rotulo: this.txt.modoTodo, ayuda: this.txt.modoTodoAyuda },
+        { id: 'inicio', rotulo: this.txt.modoInicio, ayuda: this.txt.modoInicioAyuda },
+        { id: 'personas', rotulo: this.txt.modoPersonas, ayuda: this.txt.modoPersonasAyuda },
+        { id: 'sincubrir', rotulo: this.txt.modoCubre, ayuda: this.txt.modoCubreAyuda },
+      ];
+    },
+    /** '2026-12-18' → '18 dic'. La fecha cruda en medio de una cifra se leía fatal. */
+    fechaCorta(f) {
+      if (!f) { return ''; }
+      const [a, m, d] = String(f).split('-').map(Number);
+      return new Date(a, m - 1, d).toLocaleDateString(cfg.idioma || 'es', { day: 'numeric', month: 'short' }).replace('.', '');
+    },
+    // Qué cuenta el mapa en cada modo: en "Disponibilidad" son personas, en el resto eventos.
+    get unidadMapa() { return this.modoMapa === 'personas' ? [this.txt.persona, this.txt.personas] : [this.txt.eventoSing, this.txt.eventos]; },
+    get tituloTotal() {
+      if (this.modoMapa === 'personas') { return this.txt.personasComprometidas; }
+      return this.modoMapa === 'sincubrir' ? this.txt.eventosPiden : this.txt.eventos;
+    },
+    get tituloDias() {
+      if (this.modoMapa === 'personas') { return this.txt.diasConGente; }
+      return this.modoMapa === 'sincubrir' ? this.txt.diasConEventosPiden : this.txt.diasConEventos;
+    },
+    plural(n) { return n === 1 ? this.unidadMapa[0] : this.unidadMapa[1]; },
     hexBase() {
+      // "Piden cubrimiento" no es carga de trabajo ni alarma: un azul propio, no el color del área.
+      if (this.modoMapa === 'sincubrir') { return '#1F3F7A'; }
       const sel = this.areasSel();
       return (sel.length === 1 && cfg.areaColores && cfg.areaColores[sel[0]]) || '#D9483A';
     },
@@ -555,7 +726,8 @@ document.addEventListener('alpine:init', () => {
     fondoCelda(c) {
       if (!c || !c.n) return {};
       const sel = this.areasSel();
-      if (sel.length > 1 && c.areas) {
+      // En "piden cubrimiento" la casilla no se parte por áreas: liso se lee mejor.
+      if (this.modoMapa !== 'sincubrir' && sel.length > 1 && c.areas) {
         const partes = Object.entries(c.areas).filter(([id]) => sel.includes(String(id)));
         if (partes.length) {
           const alfa = this.alfaNivel(this.nivel(c.n));
@@ -570,6 +742,72 @@ document.addEventListener('alpine:init', () => {
         }
       }
       return { background: this.colorCelda(c.n) };
+    },
+    /**
+     * Abre el panel de un día del mapa, anclado a su casilla. La posición se calcula a mano
+     * porque la casilla mide 12 px y el panel no cabe dentro de su flujo; además hay que
+     * evitar que se salga por el borde derecho de la pantalla.
+     */
+    abrirDia(c, el) {
+      const r = el.getBoundingClientRect();
+      const ancho = 260;
+      const izq = Math.min(Math.max(r.left + r.width / 2 - ancho / 2, 8), window.innerWidth - ancho - 8);
+      const cabeDebajo = window.innerHeight - r.bottom > 260;
+      const pos = cabeDebajo
+        ? `left:${Math.round(izq)}px; top:${Math.round(r.bottom + 8)}px;`
+        : `left:${Math.round(izq)}px; bottom:${Math.round(window.innerHeight - r.top + 8)}px;`;
+      const fichas = (this.mapa.detalles || {});
+      this.dia = { fecha: c.f, pos: `width:${ancho}px; ` + pos, eventos: (c.ids || []).map((id) => fichas[String(id)]).filter(Boolean) };
+      this.diaEvento = null;
+    },
+    /**
+     * El panel se abre al PULSAR la casilla, no al señalarla: con hover era inusable, porque al
+     * mover el ratón hacia el panel se salía de la casilla y se cerraba. Un día sin eventos no
+     * tiene nada que enseñar, así que lleva directo al calendario.
+     */
+    pulsarDia(c, el) {
+      if (!c.n) { this.irADia(c.f); return; }
+      if (this.dia && this.dia.fecha === c.f) { this.dia = null; this.diaEvento = null; return; }
+      this.vistazo = null;
+      this.abrirDia(c, el);
+    },
+    /** Llevar al evento: se cambia al mes de su fecha y se abre su ficha a la derecha. */
+    irAlEvento(e) {
+      this.dia = null;
+      this.diaEvento = null;
+      this.cambiarVista('dayGridMonth');
+      this.$nextTick(() => {
+        this.cal.gotoDate(e.inicio);
+        this.abrir(e.id);
+      });
+    },
+    /**
+     * Vistazo al señalar una casilla. Sustituye al title del navegador, que salía con medio
+     * segundo de retraso y sin poder darle formato. No captura el ratón (pointer-events:none).
+     */
+    verVistazo(c, el) {
+      const r = el.getBoundingClientRect();
+      const ancho = 220;
+      const izq = Math.min(Math.max(r.left + r.width / 2 - ancho / 2, 8), window.innerWidth - ancho - 8);
+      const cabeDebajo = window.innerHeight - r.bottom > 170;
+      const pos = cabeDebajo
+        ? `left:${Math.round(izq)}px; top:${Math.round(r.bottom + 6)}px;`
+        : `left:${Math.round(izq)}px; bottom:${Math.round(window.innerHeight - r.top + 6)}px;`;
+      const personas = this.modoMapa === 'personas';
+      const n = c.n || 0;
+      this.vistazo = {
+        pos: `width:${ancho}px; ` + pos,
+        fecha: c.f,
+        cuenta: n === 0 ? this.txt.sinNada : n + ' ' + (n === 1 ? this.unidadMapa[0] : this.unidadMapa[1]),
+        lineas: this.lineasVistazo(c, personas),
+        gente: !personas && (c.gente || []).length ? this.txt.van + ' ' + c.gente.slice(0, 5).join(', ') : '',
+      };
+    },
+    /** Nombres del vistazo; en los modos de eventos, con ⚑ al lado si el evento pide cubrimiento. */
+    lineasVistazo(c, personas) {
+      const d = this.mapa.detalles || {};
+      const conMarca = personas ? [] : (c.ids || []).slice(0, 4).map((id) => d[id] ? d[id].nombre + (d[id].cubre ? ' ⚑' : '') : '').filter(Boolean);
+      return conMarca.length ? conMarca : (c.nombres || []).slice(0, 4);
     },
     tituloCelda(c) {
       if (!c.n) return `${c.f} · ${this.txt.sinNada}`;
@@ -612,10 +850,13 @@ document.addEventListener('alpine:init', () => {
     cerrar() { this.detalleAbierto = false; this.detalle = ''; this.seleccionado = 0; this.marcarSeleccion(); },
     /** Resalta en la rejilla el evento abierto; con seleccionado en 0, lo quita. */
     marcarSeleccion() {
-      for (const el of this.$root.querySelectorAll('.cro-ev-sel')) { el.classList.remove('cro-ev-sel'); }
+      // Se busca dentro del elemento de FullCalendar y no en $root: al llegar desde el panel del
+      // día ("Ir al evento") abrir() corre dentro de un $nextTick y ahí $root no existe.
+      const raiz = (this.cal && this.cal.el) ? this.cal.el : document;
+      for (const el of raiz.querySelectorAll('.cro-ev-sel')) { el.classList.remove('cro-ev-sel'); }
       if (!this.seleccionado) { return; }
       // Un evento de varios días puede tener más de un trozo en la rejilla.
-      for (const el of this.$root.querySelectorAll('[data-ev="' + this.seleccionado + '"]')) {
+      for (const el of raiz.querySelectorAll('[data-ev="' + this.seleccionado + '"]')) {
         el.classList.add('cro-ev-sel');
       }
     },
@@ -629,9 +870,14 @@ document.addEventListener('alpine:init', () => {
       this.cargarProximos();
     },
     cambiarVista(v) {
-      const volviendo = this.vista === 'anio' && v !== 'anio';
+      const volviendo = (this.vista === 'anio' || this.vista === 'linea') && v !== 'anio' && v !== 'linea';
       this.vista = v;
       if (v === 'anio') { this.cargarMapa(); return; }   // el mapa no es una vista de FullCalendar
+      if (v === 'linea') {
+        // La línea usa a FullCalendar (oculto, en mes) como reloj: Hoy, ‹ › y el título siguen valiendo.
+        if (this.cal.view.type !== 'dayGridMonth') { this.cal.changeView('dayGridMonth'); } else { this.cargarLinea(); }
+        return;
+      }
       this.cal.changeView(v);
       // Al volver del mapa, FullCalendar venía oculto y midió mal: hay que recalcular
       // cuando el contenedor ya está visible, o la rejilla queda descuadrada.
@@ -658,6 +904,183 @@ document.addEventListener('alpine:init', () => {
    * Tampoco se filtra en el navegador sobre lo ya cargado, porque la tabla
    * está paginada y se estaría buscando solo dentro de la página visible.
    */
+  /**
+   * Elegir un rango de fechas sobre un calendario, en vez de dos campos de fecha sueltos.
+   * Un primer clic fija el inicio, el segundo el fin (y si se elige antes del inicio, se
+   * invierten solos). Las fechas viajan en campos ocultos para que el formulario siga siendo
+   * un GET normal y el enlace se pueda compartir.
+   */
+  Alpine.data('rangoFechas', (cfg) => ({
+    inicio: cfg.inicio || '',
+    fin: cfg.fin || '',
+    ancla: '',          // primer clic a la espera del segundo
+    abierto: false,
+    saltar: false,      // panel de los doce meses, para no ir mes a mes
+    mes: 0, anio: 0,
+    idioma: cfg.idioma || 'es',
+    txt: cfg.txt || {},
+
+    init() {
+      const d = this.inicio ? this.aFecha(this.inicio) : new Date();
+      this.anio = d.getFullYear();
+      this.mes = d.getMonth();
+    },
+    /** Abre el calendario. Pulsar "Hasta" deja el inicio fijo y espera solo el fin. */
+    abrir(cual) {
+      this.abierto = true;
+      this.saltar = false;
+      this.ancla = cual === 'fin' && this.inicio ? this.inicio : '';
+      const base = (cual === 'fin' ? this.fin : this.inicio) || this.inicio;
+      if (base) {
+        const d = this.aFecha(base);
+        this.anio = d.getFullYear();
+        this.mes = d.getMonth();
+      }
+    },
+    /** Fecha legible para los dos campos; nunca se escribe a mano, solo se elige. */
+    bonita(f) {
+      if (!f) { return this.txt.elegir || 'Elegir…'; }
+      return this.aFecha(f).toLocaleDateString(this.idioma, { day: 'numeric', month: 'short', year: 'numeric' });
+    },
+    aFecha(s) { const [a, m, d] = String(s).split('-').map(Number); return new Date(a, m - 1, d); },
+    aTexto(d) { const z = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; },
+    /** Un solo mes a la vista: con el salto directo a cualquier mes no hacen falta dos. */
+    get panes() {
+      const d = new Date(this.anio, this.mes, 1);
+      return [{ anio: d.getFullYear(), mes: d.getMonth(), titulo: this.tituloMes(d.getFullYear(), d.getMonth()), celdas: this.celdasDe(d.getFullYear(), d.getMonth()) }];
+    },
+    /** Rótulo del cabecero; pulsarlo abre el salto directo a cualquier mes. */
+    get rotulo() { const [a] = this.panes; return `${a.titulo} ${a.anio}`; },
+    tituloMes(anio, mes) {
+      // Solo la primera letra en mayúscula: text-transform:capitalize capitaliza TODAS las palabras.
+      const t = new Date(anio, mes, 1).toLocaleDateString(this.idioma, { month: 'long' });
+      return t.charAt(0).toUpperCase() + t.slice(1);
+    },
+    /** Los doce meses abreviados, para el panel de salto. */
+    get meses() {
+      return Array.from({ length: 12 }, (_, m) => new Date(2000, m, 1).toLocaleDateString(this.idioma, { month: 'short' }).replace('.', ''));
+    },
+    /** Iniciales de los días, de lunes a domingo (el 1 de enero de 2024 cayó en lunes). */
+    get diasSemana() {
+      return Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(this.idioma, { weekday: 'narrow' }).toUpperCase());
+    },
+    /** Celdas de un mes; los huecos del principio son null para cuadrar el lunes. */
+    celdasDe(anio, mes) {
+      const hueco = (new Date(anio, mes, 1).getDay() + 6) % 7;   // lunes = 0
+      const ultimo = new Date(anio, mes + 1, 0).getDate();
+      const out = Array(hueco).fill(null);
+      for (let d = 1; d <= ultimo; d++) { out.push(this.aTexto(new Date(anio, mes, d))); }
+      return out;
+    },
+    mover(n) { const d = new Date(this.anio, this.mes + n, 1); this.anio = d.getFullYear(); this.mes = d.getMonth(); },
+    /** Salto directo: cualquier mes del año a un clic, sin pasar uno por uno. */
+    irA(mes) { this.mes = mes; this.saltar = false; },
+    moverAnio(n) { this.anio += n; },
+    esInicio(f) { return f === this.inicio; },
+    esFin(f) { return f === this.fin; },
+    dentro(f) { return this.inicio && this.fin && f > this.inicio && f < this.fin; },
+    esperando(f) { return this.ancla === f; },
+    pulsar(f) {
+      if (!this.ancla) { this.ancla = f; this.inicio = f; this.fin = f; return; }
+      // Segundo clic: se ordena solo, da igual el orden en que se pulse.
+      this.inicio = f < this.ancla ? f : this.ancla;
+      this.fin = f < this.ancla ? this.ancla : f;
+      this.ancla = '';
+      this.abierto = false;
+      this.saltar = false;
+      this.enviar();
+    },
+    /** Rangos de uso frecuente, que es como se consulta esto casi siempre. */
+    atajo(cual) {
+      const hoy = new Date();
+      const mas = (n) => { const d = new Date(hoy); d.setDate(d.getDate() + n); return d; };
+      const rangos = {
+        semana: [hoy, mas(6)],
+        quincena: [hoy, mas(14)],
+        mes: [hoy, mas(29)],
+        mesActual: [new Date(hoy.getFullYear(), hoy.getMonth(), 1), new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0)],
+        anio: [new Date(hoy.getFullYear(), 0, 1), new Date(hoy.getFullYear(), 11, 31)],
+      };
+      const [a, b] = rangos[cual];
+      this.inicio = this.aTexto(a);
+      this.fin = this.aTexto(b);
+      this.ancla = '';
+      this.abierto = false;
+      this.saltar = false;
+      this.anio = a.getFullYear();
+      this.mes = a.getMonth();
+      this.enviar();
+    },
+    get resumen() {
+      if (!this.inicio || !this.fin) { return this.txt.eligeRango || 'Elige un rango'; }
+      const dias = Math.round((this.aFecha(this.fin) - this.aFecha(this.inicio)) / 86400000) + 1;
+      const f = (s) => this.aFecha(s).toLocaleDateString(this.idioma, { day: 'numeric', month: 'short' });
+      return this.inicio === this.fin ? f(this.inicio) : `${f(this.inicio)} → ${f(this.fin)} · ${dias} ${this.txt.dias || 'días'}`;
+    },
+    /**
+     * El envío no pasa por $nextTick: ese callback no siempre llega a ejecutarse y el rango se
+     * quedaba elegido sin lanzar la consulta. Los ocultos se rellenan a mano para no depender
+     * de cuándo Alpine refresque los bindings.
+     */
+    enviar() {
+      const form = this.$root.closest('form');
+      if (!form) { return; }
+      const campo = (n) => form.querySelector(`input[name="${n}"]`);
+      if (campo('inicio')) { campo('inicio').value = this.inicio; }
+      if (campo('fin')) { campo('fin').value = this.fin; }
+      setTimeout(() => form.submit(), 0);
+    },
+  }));
+
+  /**
+   * Elegir UNA persona escribiendo, dentro de un formulario normal. El id viaja en un campo
+   * oculto para que el formulario siga siendo un GET corriente; lo visible es solo el buscador.
+   */
+  Alpine.data('selectorPersona', (cfg) => ({
+    usuarios: cfg.usuarios || [],
+    id: String(cfg.id || ''),
+    q: '',
+    abierto: false,
+    activo: 0,
+    init() {
+      const u = this.usuarios.find((x) => String(x.id) === this.id);
+      this.q = u ? u.nombre : '';
+    },
+    get candidatos() {
+      const t = CRO.norm(this.q);
+      // Con una persona ya elegida y sin tocar el texto, se ofrecen todas: así se puede
+      // cambiar de persona sin tener que borrar antes lo que hay escrito.
+      const u = this.usuarios.find((x) => String(x.id) === this.id);
+      const sinTocar = u && CRO.norm(u.nombre) === t;
+      return this.usuarios
+        .filter((x) => sinTocar || t === '' || CRO.norm(x.nombre).includes(t) || CRO.norm(x.area || '').includes(t))
+        .slice(0, 12);
+    },
+    elegir(u) { this.id = String(u.id); this.q = u.nombre; this.abierto = false; this.activo = 0; },
+    limpiar() { this.id = ''; this.q = ''; this.abierto = false; },
+    tecla(e) {
+      if (e.key === 'Enter') {
+        // Solo se traga el Enter si hay algo que elegir; si no, que envíe el formulario.
+        const lista = this.candidatos;
+        if (this.abierto && lista.length) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.elegir(lista[Math.min(this.activo, lista.length - 1)]);
+        }
+        return;
+      }
+      if (e.key === 'Escape') { this.abierto = false; return; }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.abierto = true;
+        this.activo = Math.min(this.activo + 1, Math.max(this.candidatos.length - 1, 0));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        this.activo = Math.max(this.activo - 1, 0);
+      }
+    },
+  }));
+
   Alpine.data('buscadorEventos', () => ({
     _turno: 0,
     async buscar() {
@@ -828,6 +1251,45 @@ document.addEventListener('alpine:init', () => {
                  { name: d.txt.realizadas, type: 'bar', barMaxWidth: 18, itemStyle: { borderRadius: 3 }, data: d.por_tipo.map((t) => t.realizados).reverse() }] });
       crear('segmento', { tooltip: { trigger: 'item' }, color: ['#1F3F7A', '#3A5BD9', '#0E8F8B', '#C2780A', '#7A4BD6', '#C43D6B', '#3E8E3A', '#B3B7BF'],
         series: [{ type: 'pie', radius: ['45%', '75%'], label: { color: texto, fontSize: 11 }, data: d.por_segmento.map((s) => ({ name: s.segmento, value: s.total })) }] });
+      // --- Cubrimiento: quién lidera, qué áreas lo piden y cuándo se aprieta ---
+      const cub = d.cub || {};
+      const tx = d.txt;
+      const ejeX = { type: 'value', minInterval: 1, axisLabel: { color: texto }, splitLine: { lineStyle: { color: oscuro ? '#2A2F3A' : '#EEEBE4' } } };
+      const ejeY = (nombres) => ({ type: 'category', data: nombres, axisLabel: { color: texto, fontSize: 11, width: 150, overflow: 'truncate' } });
+      const barra = (nombre, datos, extra = {}) => ({ name: nombre, type: 'bar', barMaxWidth: 16, itemStyle: { borderRadius: 3 }, data: datos, ...extra });
+      const rejilla = { left: 10, right: 30, top: 10, bottom: 34, containLabel: true };
+      const vacio = (ref, texto2) => { this.$refs[ref].innerHTML = `<p class="flex h-full items-center justify-center text-sm text-gris">${texto2}</p>`; };
+      if (this.$refs.cubPersonas) {
+        const p = (cub.carga || []).slice(0, 10).reverse();
+        if (!p.length) vacio('cubPersonas', tx.vacioPiden);
+        else crear('cubPersonas', { tooltip: { trigger: 'axis' }, legend: { bottom: 0, textStyle: { color: texto } }, grid: rejilla, color: ['#1F3F7A', '#8FB0E8'],
+          xAxis: ejeX, yAxis: ejeY(p.map((x) => x.nombre)),
+          series: [barra(tx.eventos, p.map((x) => Number(x.eventos))), barra(tx.dias, p.map((x) => Number(x.dias)))] });
+      }
+      if (this.$refs.cubAreas) {
+        const a = (cub.por_area || []).slice().reverse();
+        if (!a.length) vacio('cubAreas', tx.vacioEventos);
+        else crear('cubAreas', { tooltip: { trigger: 'axis' }, legend: { bottom: 0, textStyle: { color: texto } }, grid: rejilla, color: ['#1F3F7A', '#B3B7BF'],
+          xAxis: ejeX, yAxis: ejeY(a.map((x) => x.area)),
+          series: [barra(tx.piden, a.map((x) => x.piden), { stack: 't', itemStyle: { borderRadius: 0 } }),
+                   barra(tx.noPiden, a.map((x) => x.total - x.piden), { stack: 't', itemStyle: { borderRadius: [0, 3, 3, 0] } })] });
+      }
+      if (this.$refs.cubResp) {
+        const r = (cub.responsables || []).slice(0, 10).reverse();
+        if (!r.length) vacio('cubResp', tx.vacioEventos);
+        else crear('cubResp', { tooltip: { trigger: 'axis' }, legend: { bottom: 0, textStyle: { color: texto } }, grid: rejilla, color: ['#1F3F7A', '#2E9E5B'],
+          xAxis: ejeX, yAxis: ejeY(r.map((x) => x.nombre)),
+          series: [barra(tx.lidera, r.map((x) => x.eventos)), barra(tx.conCub, r.map((x) => x.con_cubrimiento))] });
+      }
+      if (this.$refs.cubSemanas) {
+        const s = cub.semanas || [];
+        const max = Math.max(0, ...s.map((x) => x.personas_dia));
+        if (!max) vacio('cubSemanas', tx.vacioSemanas);
+        else crear('cubSemanas', { tooltip: { trigger: 'axis', formatter: (ps) => tx.semana + ' ' + ps[0].name + ': ' + ps[0].value + ' ' + tx.personasDia }, grid: { left: 36, right: 12, top: 12, bottom: 28 }, color: ['#1F3F7A'],
+          xAxis: { type: 'category', data: s.map((x) => x.semana), axisLabel: { color: texto, interval: 3, formatter: (v) => 'S' + v } },
+          yAxis: { type: 'value', minInterval: 1, axisLabel: { color: texto }, splitLine: { lineStyle: { color: oscuro ? '#2A2F3A' : '#EEEBE4' } } },
+          series: [{ type: 'bar', barMaxWidth: 14, itemStyle: { borderRadius: 2 }, data: s.map((x) => ({ value: x.personas_dia, itemStyle: x.personas_dia === max ? { color: '#C2780A' } : {} })) }] });
+      }
       window.addEventListener('resize', () => charts.forEach((c) => c.resize()));
     },
   }));

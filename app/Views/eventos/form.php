@@ -17,7 +17,7 @@ $campoPaso = [
     'nombre' => 1, 'fecha_inicio' => 1, 'fecha_fin' => 1, 'estado' => 1,
     'tipo_accion' => 1, 'tipo_accion_otro' => 1, 'segmento' => 1, 'segmento_otro' => 1,
     'pais' => 2, 'ciudad' => 2, 'mercado' => 2, 'organizador' => 2,
-    'area' => 2, 'linea_estrategica' => 2,
+    'area' => 2, 'linea_estrategica' => 2, 'dueno_id' => 2, 'requiere_cubrimiento' => 2,
     'objetivo' => 3, 'resultados' => 3, 'alianzas' => 3, 'observaciones' => 3,
     'contactos_url' => 4, 'evidencia_url' => 4, 'reuniones' => 4,
 ];
@@ -193,7 +193,29 @@ $lista = static function (string $campo) use ($valores, $errores, $opciones): st
           <div class="input bg-[#F0EEE8] text-gris dark:bg-noche"><?= h($areaUsuario !== '' ? t($areaUsuario) : t('Sin área asignada')) ?></div>
         </div>
       <?php endif; ?>
+      <div>
+        <label class="label mb-0.5" for="dueno_id"><?= h(t('Responsable del evento')) ?></label>
+        <p class="mb-1.5 text-[11px] leading-snug text-gris"><?= h(t('Quién responde por este evento. Puede ser otra persona del área, no necesariamente quien lo crea.')) ?></p>
+        <select class="input" id="dueno_id" name="dueno_id" required<?= $aria('dueno_id') ?>>
+          <?php foreach ($duenos as $d): ?>
+          <option value="<?= (int) $d['id'] ?>" <?= (int) $d['id'] === $duenoActual ? 'selected' : '' ?>><?= h($d['nombre']) ?><?= ($d['area_nombre'] ?? '') !== '' ? ' · ' . h(t($d['area_nombre'])) : ($d['rol'] === 'admin' ? ' · ' . h(t('Administrador')) : '') ?></option>
+          <?php endforeach; ?>
+          <?php if (!$duenos): ?><option value=""><?= h(t('No hay usuarios en esta área')) ?></option><?php endif; ?>
+        </select>
+        <?= $err('dueno_id') ?>
+      </div>
       <?= $lista('linea_estrategica') ?>
+      <div class="md:col-span-2" x-data="{ pide: <?= $cubrimiento ? 'true' : 'false' ?> }">
+        <span class="label mb-0.5"><?= h(t('¿Necesita cubrimiento?')) ?></span>
+        <p class="mb-1.5 text-[11px] leading-snug text-gris"><?= h(t('Márcalo si hace falta que alguien del área esté presente. Quién va se decide el día del evento.')) ?></p>
+        <input type="hidden" name="requiere_cubrimiento" :value="pide ? '1' : '0'">
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" class="badge-estado cro-estado-btn border" :class="pide ? 'font-bold' : 'border-transparent'"
+                  :style="'--c:#1F3F7A' + (pide ? ';border-color:#1F3F7A' : '')" :aria-pressed="pide" @click="pide = true">⚑ <?= h(t('Sí, pide cubrimiento')) ?></button>
+          <button type="button" class="badge-estado cro-estado-btn border" :class="!pide ? 'font-bold' : 'border-transparent'"
+                  :style="'--c:#8A8F98' + (!pide ? ';border-color:#8A8F98' : '')" :aria-pressed="!pide" @click="pide = false"><?= h(t('No')) ?></button>
+        </div>
+      </div>
     </div>
   </section>
 

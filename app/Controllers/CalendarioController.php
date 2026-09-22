@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Models\Catalogo;
 use App\Models\Evento;
+use App\Models\Usuario;
 
 final class CalendarioController extends Controller
 {
@@ -27,6 +28,10 @@ final class CalendarioController extends Controller
         // día o a un evento concreto (la matriz del Dashboard, un aviso, un enlace compartido) se abre
         // el mes: quien llega por ahí viene a ver ese día, no el año entero.
         $vistaInicial = ($fecha === $fechaPedida || $req->int('evento')) ? 'dayGridMonth' : 'anio';
+        // Enlaces directos a la línea de tiempo (p. ej. desde el Dashboard).
+        if ($req->get('vista') === 'linea') {
+            $vistaInicial = 'linea';
+        }
         // Los conteos laterales ignoran área/estado para que las cifras sigan visibles al filtrar
         $conteos = Evento::conteos(['anio' => $anio] + array_diff_key($filtros, ['area_id' => 1, 'estado' => 1, 'anio' => 1]));
         $this->vista('calendario/index', [
@@ -40,6 +45,8 @@ final class CalendarioController extends Controller
             'anios'       => Evento::anios(),
             'fecha'       => $fecha,
             'vistaInicial' => $vistaInicial,
+            'usuarios'    => Usuario::activos(),
+            'agendas'     => Evento::eventosPorPersona($anio),
             'areas'       => Catalogo::areas(),
             'tipos'       => Catalogo::listar('tipo_accion', true),
             'segmentos'   => Catalogo::listar('segmento', true),

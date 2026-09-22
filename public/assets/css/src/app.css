@@ -520,3 +520,306 @@ span.cro-mx-pie:hover{transform:none;box-shadow:none}
 .cro-asis-nota{padding:0 1rem .625rem;font-size:.6875rem;color:var(--color-gris)}
 @media (prefers-reduced-motion:reduce){.cro-asis-btn,.cro-asis-ejemplo,.cro-asis-enviar{transition:none}.cro-asis-btn:hover{transform:none}.cro-asis-cargando span{animation:none}}
 .cro-asis-cupo{color:var(--color-estado-ambar);font-weight:600}
+
+/* ===========================================================================
+   Responsable, cubrimiento, disponibilidad y línea de tiempo (2026-09-22)
+   =========================================================================== */
+
+/* ---- Ficha del evento: que se note qué es rótulo y qué es dato -----------
+   El rótulo va en el azul de la casa y en mayúsculas para que se lea como nombre
+   de campo; el dato queda en tinta, grande y legible, pero sin competir. */
+.cro-ficha-rotulo{display:block;margin-bottom:.15rem;font-size:11px;font-weight:800;line-height:1.35;letter-spacing:.09em;text-transform:uppercase;color:var(--color-azul)}
+.dark .cro-ficha-rotulo{color:#8FB0E8}
+.cro-ficha-dato{display:block;font-size:.9375rem;font-weight:500;line-height:1.45;color:var(--color-tinta)}
+.dark .cro-ficha-dato{color:#e9eaee}
+.cro-ficha-dato a{font-weight:600}
+/* Una línea finísima separa cada dato del siguiente sin hacer ruido. */
+.cro-ficha-campo{padding-bottom:.4rem;border-bottom:1px solid color-mix(in srgb,var(--color-borde) 55%,transparent)}
+.dark .cro-ficha-campo{border-bottom-color:color-mix(in srgb,var(--color-noche-borde) 70%,transparent)}
+
+/* ---- Cubrimiento a la vista, sin alarma ----------------------------------
+   El chip del calendario lleva un aro del color de su área y ⚑ cuando el evento pide
+   cubrimiento. Nada en rojo: no asignar a nadie no es un problema. */
+.cro-chip-cubre{outline:1.5px solid color-mix(in srgb,var(--c) 65%,#000);outline-offset:-1.5px}
+.dark .cro-chip-cubre{outline-color:color-mix(in srgb,var(--c) 75%,#fff)}
+.cro-chip-marca{flex:none;margin-left:auto;padding-left:.2rem;font-size:10px;font-weight:800;line-height:1;color:color-mix(in srgb,var(--c) 55%,#000)}
+.dark .cro-chip-marca{color:color-mix(in srgb,var(--c) 75%,#fff)}
+.cro-marca-cubre{color:var(--color-azul);font-weight:700}
+.dark .cro-marca-cubre{color:#8FB0E8}
+.cro-dia-marca{flex:none;font-size:11px;font-weight:800}
+
+/* ---- Panel de agenda del filtro de personas -----------------------------
+   Sale al señalar un chip y dice qué lleva esa persona este año. No es un title del
+   navegador porque hace falta más de una línea y salir al momento. */
+.cro-agenda-pop{margin-top:.5rem;padding:.55rem .65rem;border:1px solid var(--color-borde);border-radius:.6rem;background:var(--color-white,#fff);box-shadow:0 6px 18px rgb(0 0 0 / .07);font-size:11px;line-height:1.45}
+.dark .cro-agenda-pop{border-color:var(--color-noche-borde);background:var(--color-noche-2);box-shadow:0 6px 18px rgb(0 0 0 / .35)}
+.cro-agenda-quien{margin-bottom:.3rem;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--color-azul)}
+.dark .cro-agenda-quien{color:#8FB0E8}
+.cro-agenda-lista{margin:0;padding:0;list-style:none}
+.cro-agenda-lista li{display:flex;gap:.4rem;padding:.15rem 0;color:var(--color-tinta)}
+.dark .cro-agenda-lista li{color:#e9eaee}
+.cro-agenda-lista li + li{border-top:1px solid color-mix(in srgb,var(--color-borde) 45%,transparent)}
+.dark .cro-agenda-lista li + li{border-top-color:color-mix(in srgb,var(--color-noche-borde) 60%,transparent)}
+.cro-agenda-fecha{flex:none;min-width:2.6rem;font-weight:700;color:var(--color-gris)}
+.cro-agenda-mas{margin-top:.3rem;color:var(--color-gris);font-style:italic}
+/* Chip señalado por Retroceso: avisa de a quién se quitaría si vuelves a pulsar. */
+.cro-chip-porquitar{border-color:var(--color-peligro);background:color-mix(in srgb,var(--color-peligro) 12%,transparent);color:var(--color-peligro)}
+.cro-chip-porquitar .cro-chip-x{opacity:1}
+
+/* ---- Barra del mapa de calor: modos como segmentado y cifras como tarjetas ----
+   Antes era una frase corrida en la que no se distinguía un dato de un control. */
+.cro-hm-barra{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin-bottom:.8rem}
+.cro-hm-barra-rot{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--color-gris)}
+.cro-hm-segm{display:inline-flex;gap:.25rem;padding:.25rem;border:1px solid var(--color-borde);border-radius:9999px}
+.dark .cro-hm-segm{border-color:var(--color-noche-borde)}
+.cro-hm-seg{padding:.28rem .85rem;border:0;border-radius:9999px;background:none;font:inherit;font-size:12px;font-weight:600;color:var(--color-gris);cursor:pointer;transition:background-color .14s ease,color .14s ease}
+.cro-hm-seg:hover{color:var(--color-tinta)}
+.dark .cro-hm-seg:hover{color:#e9eaee}
+.cro-hm-seg-activo,.cro-hm-seg-activo:hover{background:var(--color-azul);color:#fff}
+.cro-hm-cifras{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem;margin-bottom:1rem}
+.cro-hm-dato{text-align:left;padding:.6rem .8rem;border:1px solid var(--color-borde);border-radius:.7rem;background:none;font:inherit;color:inherit}
+.dark .cro-hm-dato{border-color:var(--color-noche-borde)}
+.cro-hm-dato-btn{cursor:pointer;transition:border-color .14s ease,background-color .14s ease}
+.cro-hm-dato-btn:hover{border-color:var(--color-azul)}
+.cro-hm-dato-activo,.cro-hm-dato-activo:hover{border-color:var(--color-azul);background:color-mix(in srgb,var(--color-azul) 8%,transparent)}
+.cro-hm-num{display:block;font-size:20px;font-weight:800;line-height:1.15;color:var(--color-tinta)}
+.dark .cro-hm-num{color:#e9eaee}
+.cro-hm-dato-activo .cro-hm-num{color:var(--color-azul)}
+.cro-hm-rot{display:block;font-size:11.5px;font-weight:600;color:var(--color-gris)}
+.cro-hm-pie{display:block;margin-top:.1rem;font-size:10.5px;color:var(--color-gris);opacity:.8}
+/* La unidad pegada a su cifra: en el pie quedaba colgando ("18 dic · eventos"). */
+.cro-hm-linea{display:flex;align-items:baseline;gap:.3rem}
+.cro-hm-uni{font-size:11px;font-weight:600;color:var(--color-gris)}
+@media (max-width:860px){.cro-hm-cifras{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){.cro-hm-seg,.cro-hm-dato-btn{transition:none}}
+
+/* ---- Panel del día en el mapa de calor -----------------------------------
+   Sale al pulsar una casilla y se queda hasta cerrarlo, para poder pinchar un evento y
+   ver su ficha sin salir del mapa. Va en position fixed porque la casilla mide 12 px. */
+.cro-dia-pop{position:fixed;z-index:50;padding:.6rem;border:1px solid var(--color-borde);border-radius:.7rem;background:#fff;box-shadow:0 10px 30px rgb(0 0 0 / .13);font-size:12px;line-height:1.45;color:var(--color-tinta)}
+.dark .cro-dia-pop{border-color:var(--color-noche-borde);background:var(--color-noche-2);color:#e9eaee;box-shadow:0 10px 30px rgb(0 0 0 / .45)}
+.cro-dia-cab{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.4rem;padding-bottom:.35rem;border-bottom:1px solid color-mix(in srgb,var(--color-borde) 60%,transparent);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--color-azul)}
+.dark .cro-dia-cab{border-bottom-color:var(--color-noche-borde);color:#8FB0E8}
+.cro-dia-x{border:0;background:none;font:inherit;color:var(--color-gris);cursor:pointer;line-height:1}
+.cro-dia-x:hover{color:var(--color-peligro)}
+.cro-dia-item{display:flex;align-items:center;gap:.4rem;width:100%;padding:.3rem .25rem;border:0;border-radius:.35rem;background:none;font:inherit;font-size:12px;text-align:left;color:inherit;cursor:pointer;transition:background-color .12s ease}
+.cro-dia-item:hover{background:#F0EEE8}
+.dark .cro-dia-item:hover{background:#232834}
+.cro-dia-punto{flex:none;width:7px;height:7px;border-radius:50%}
+.cro-dia-nombre{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cro-dia-flecha{flex:none;color:var(--color-gris)}
+.cro-dia-vacio{padding:.4rem .25rem;color:var(--color-gris)}
+.cro-dia-volver{border:0;background:none;padding:0 0 .35rem;font:inherit;font-size:11px;font-weight:600;color:var(--color-azul);cursor:pointer}
+.dark .cro-dia-volver{color:#8FB0E8}
+.cro-dia-titulo{margin-bottom:.45rem;font-weight:700;line-height:1.3}
+.cro-dia-datos{display:grid;grid-template-columns:1fr 1fr;gap:.35rem .6rem;margin:0}
+.cro-dia-datos > div{min-width:0}
+.cro-dia-ancho{grid-column:1 / -1}
+.cro-dia-datos dt{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--color-gris)}
+.cro-dia-datos dd{margin:0;font-size:11.5px;overflow-wrap:anywhere}
+.cro-dia-ir{display:block;width:100%;margin-top:.6rem;padding:.35rem;border:0;border-radius:9999px;background:var(--color-azul);font:inherit;font-size:11px;font-weight:700;color:#fff;cursor:pointer;transition:background-color .14s ease}
+.cro-dia-ir:hover{background:var(--color-azul-oscuro)}
+/* Variante suave: acción secundaria (ir al día) frente a la principal (ir al evento). */
+.cro-dia-ir-suave{background:none;border:1px solid var(--color-borde);color:var(--color-azul)}
+.dark .cro-dia-ir-suave{border-color:var(--color-noche-borde);color:#8FB0E8}
+.cro-dia-ir-suave:hover{background:#F0EEE8}
+.dark .cro-dia-ir-suave:hover{background:#232834}
+@media (prefers-reduced-motion:reduce){.cro-dia-item,.cro-dia-ir{transition:none}}
+
+/* ---- Vistazo al señalar un día del mapa o una barra de la línea -----------
+   Sustituye al title del navegador: salía con medio segundo de retraso y sin poder darle
+   forma. NO captura el ratón, así que nunca se interpone entre el cursor y la casilla. */
+.cro-vistazo{position:fixed;z-index:60;pointer-events:none;padding:.5rem .6rem;border:1px solid var(--color-borde);border-radius:.55rem;background:#fff;box-shadow:0 8px 22px rgb(0 0 0 / .12);font-size:11px;line-height:1.4;color:var(--color-tinta)}
+.dark .cro-vistazo{border-color:var(--color-noche-borde);background:var(--color-noche-2);color:#e9eaee;box-shadow:0 8px 22px rgb(0 0 0 / .45)}
+.cro-vistazo-cab{margin-bottom:.3rem;font-size:9.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--color-azul)}
+.dark .cro-vistazo-cab{color:#8FB0E8}
+.cro-vistazo-lista{margin:0;padding:0;list-style:none}
+.cro-vistazo-lista li{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:.05rem 0}
+.cro-vistazo-gente{margin-top:.3rem;padding-top:.3rem;border-top:1px solid color-mix(in srgb,var(--color-borde) 55%,transparent);color:var(--color-gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dark .cro-vistazo-gente{border-top-color:var(--color-noche-borde)}
+.cro-vistazo-pie{margin-top:.35rem;font-size:9.5px;font-style:italic;color:var(--color-gris-claro)}
+
+/* ---- Disponibilidad: selector de rango sobre un calendario -----------------
+   Sustituye a los dos campos de fecha sueltos: se ve el mes entero y el rango elegido
+   queda pintado, que es como se piensa "del 13 al 20". Cuelga de los campos. */
+.cro-fecha-btn{display:block;width:100%;text-align:left;cursor:pointer;font:inherit;font-size:14px;color:var(--color-tinta)}
+.dark .cro-fecha-btn{color:#e9eaee}
+.cro-fecha-btn:hover{border-color:var(--color-azul)}
+.cro-fecha-activa{border-color:var(--color-azul);box-shadow:0 0 0 2px color-mix(in srgb,var(--color-azul) 18%,transparent)}
+.cro-rango-pop{position:absolute;z-index:30;left:0;top:100%;margin-top:.4rem;width:20rem;padding:.6rem;border:1px solid var(--color-borde);border-radius:.7rem;background:#fff;box-shadow:0 10px 30px rgb(0 0 0 / .13)}
+.dark .cro-rango-pop{border-color:var(--color-noche-borde);background:var(--color-noche-2);box-shadow:0 10px 30px rgb(0 0 0 / .45)}
+/* El calendario colgaba por debajo de las tarjetas siguientes: se eleva el formulario entero. */
+.cro-form-encima{position:relative;z-index:40}
+.cro-rango-atajos{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.6rem}
+.cro-rango-atajo{padding:.18rem .55rem;border:1px solid var(--color-borde);border-radius:9999px;background:none;font:inherit;font-size:10.5px;font-weight:600;color:var(--color-gris);cursor:pointer;transition:border-color .14s ease,color .14s ease}
+.dark .cro-rango-atajo{border-color:var(--color-noche-borde)}
+.cro-rango-atajo:hover{border-color:var(--color-azul);color:var(--color-azul)}
+.dark .cro-rango-atajo:hover{color:#8FB0E8}
+.cro-rango-cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem}
+.cro-rango-nav{width:22px;height:22px;border:0;border-radius:.35rem;background:none;font:inherit;font-size:15px;line-height:1;color:var(--color-gris);cursor:pointer}
+.cro-rango-nav:hover{background:#F0EEE8;color:var(--color-tinta)}
+.dark .cro-rango-nav:hover{background:#232834;color:#e9eaee}
+.cro-rango-rotulo{display:flex;align-items:center;gap:.3rem;padding:.15rem .5rem;border:0;border-radius:.35rem;background:none;font:inherit;font-size:12px;font-weight:700;color:var(--color-tinta);cursor:pointer}
+.dark .cro-rango-rotulo{color:#e9eaee}
+.cro-rango-rotulo:hover{background:#F0EEE8}
+.dark .cro-rango-rotulo:hover{background:#232834}
+.cro-rango-caret{font-size:9px;color:var(--color-gris)}
+.cro-rango-salto{padding:.2rem 0 .4rem}
+.cro-rango-anio{display:flex;align-items:center;justify-content:center;gap:.8rem;margin-bottom:.6rem;font-size:12px;font-weight:700}
+.cro-rango-meses{display:grid;grid-template-columns:repeat(4,1fr);gap:.35rem}
+.cro-rango-mesbtn{padding:.5rem .2rem;border:1px solid var(--color-borde);border-radius:.4rem;background:none;font:inherit;font-size:11px;font-weight:600;color:var(--color-tinta);cursor:pointer;text-transform:capitalize;transition:border-color .14s ease,color .14s ease}
+.dark .cro-rango-mesbtn{border-color:var(--color-noche-borde);color:#e9eaee}
+.cro-rango-mesbtn:hover{border-color:var(--color-azul);color:var(--color-azul)}
+.cro-rango-mesactivo,.cro-rango-mesactivo:hover{background:var(--color-azul);border-color:var(--color-azul);color:#fff}
+.cro-rango-panes{display:grid;grid-template-columns:1fr;gap:1rem}
+.cro-rango-dias{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cro-rango-cabdias{margin-bottom:2px}
+.cro-rango-cabdias span{text-align:center;font-size:9px;color:var(--color-gris)}
+.cro-rango-dia{height:1.85rem;border:0;border-radius:.3rem;background:none;font:inherit;font-size:11px;color:var(--color-tinta);cursor:pointer;transition:background-color .12s ease}
+.dark .cro-rango-dia{color:#e9eaee}
+.cro-rango-dia:hover:not(:disabled){background:#F0EEE8}
+.dark .cro-rango-dia:hover:not(:disabled){background:#232834}
+.cro-rango-hueco{visibility:hidden;cursor:default}
+.cro-rango-dentro{background:color-mix(in srgb,var(--color-azul) 16%,transparent)}
+.cro-rango-punta{background:var(--color-azul);color:#fff;font-weight:700}
+.cro-rango-punta:hover:not(:disabled){background:var(--color-azul-oscuro)}
+.cro-rango-espera{outline:2px dashed var(--color-azul);outline-offset:-2px}
+.cro-rango-pie{margin-top:.5rem;padding-top:.45rem;border-top:1px solid color-mix(in srgb,var(--color-borde) 55%,transparent);font-size:11px;font-weight:600;color:var(--color-tinta)}
+.dark .cro-rango-pie{border-top-color:var(--color-noche-borde);color:#e9eaee}
+.cro-rango-ayuda{font-weight:400;color:var(--color-azul)}
+.dark .cro-rango-ayuda{color:#8FB0E8}
+@media (max-width:760px){.cro-rango-pop{width:19rem}}
+@media (prefers-reduced-motion:reduce){.cro-rango-atajo,.cro-rango-dia,.cro-rango-mesbtn{transition:none}}
+/* ✕ para vaciar el buscador de persona. */
+.cro-sel-limpiar{position:absolute;right:.55rem;top:50%;transform:translateY(-50%);border:0;background:none;padding:0;line-height:1;font-size:12px;color:var(--color-gris);cursor:pointer}
+.cro-sel-limpiar:hover{color:var(--color-peligro)}
+/* Cifras de la vista. En tema oscuro los números quedaban del color del fondo. */
+.cro-cifra{font-weight:700;color:var(--color-tinta)}
+.dark .cro-cifra{color:#e9eaee}
+
+/* ---- Disponibilidad: agenda de una persona, solo los días comprometidos --------
+   Una fila por mes con sus días como casillas y, al lado, sus eventos como chips. Los
+   meses en los que no tiene nada no salen. Mismo lenguaje que el mapa de calor. */
+.cro-disp-meses{display:grid;gap:.55rem}
+.cro-disp-fila{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem}
+.cro-disp-mesrot{margin-bottom:0;min-width:9.5rem;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--color-gris)}
+.cro-disp-tira{display:flex;flex-wrap:wrap;gap:3px}
+.cro-disp-dia{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:5px;border:1px solid var(--color-borde);font-size:10px;font-weight:600;line-height:1;color:var(--color-gris);cursor:default;outline:1px solid #0000;transition:transform .14s ease,box-shadow .14s ease,outline-color .14s ease,opacity .14s ease}
+.dark .cro-disp-dia{border-color:var(--color-noche-borde)}
+.cro-disp-dia:hover{transform:scale(1.18);outline-color:var(--color-tinta)}
+.dark .cro-disp-dia:hover{outline-color:#e9eaee}
+.cro-disp-ocupado{border-color:transparent;background:color-mix(in srgb,var(--color-azul) 78%,transparent);color:#fff}
+/* Día señalado en la agenda de la persona (o su evento, señalado desde la lista). */
+.cro-disp-foco{transform:scale(1.18);box-shadow:0 3px 10px rgb(0 0 0 / .18);outline:2px solid var(--color-tinta);outline-offset:1px}
+.dark .cro-disp-foco{outline-color:#e9eaee}
+.cro-disp-enque{display:flex;flex-wrap:wrap;gap:.3rem;font-size:11px;color:var(--color-gris)}
+@media (max-width:760px){.cro-disp-mesrot{min-width:0;flex-basis:100%}}
+
+/* ---- Disponibilidad: animaciones y claridad -----------------------------------
+   (1) las tarjetas entran con un fundido corto y escalonado; (2) las pistas salen al
+   instante en un globo propio (data-tip); (3) señalar un día ilumina su evento y al revés,
+   y lo que no tiene que ver se atenúa. Todo en 120-180 ms y sin movimiento si el sistema
+   pide reducirlo. */
+@keyframes cro-entra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.cro-entra{animation:cro-entra .28s ease both}
+.cro-entra-2{animation-delay:.05s}
+.cro-entra-3{animation-delay:.1s}
+.cro-entra-4{animation-delay:.15s}
+/* Pista al señalar. Va ARRIBA del elemento y centrada; no captura el ratón. */
+.cro-tip{position:relative}
+.cro-tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 7px);z-index:25;width:max-content;max-width:18rem;padding:.32rem .6rem;border-radius:.45rem;background:var(--color-tinta);color:#fff;font-size:11px;font-weight:600;line-height:1.3;text-align:center;white-space:normal;text-transform:none;letter-spacing:0;transform:translate(-50%,4px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .13s ease,transform .13s ease,visibility 0s linear .13s}
+.cro-tip:hover::after,.cro-tip:focus-visible::after{opacity:1;visibility:visible;transform:translate(-50%,0);transition-delay:0s}
+.dark .cro-tip::after{background:#e9eaee;color:#1B1F27}
+/* Chips de evento: bajo cada mes y en la columna "En" de Comprometidos. */
+.cro-ev-lista{display:flex;flex-wrap:wrap;gap:.3rem}
+.cro-ev-chip{display:inline-block;padding:.14rem .55rem;border:1px solid var(--color-borde);border-radius:9999px;font-size:11px;font-weight:600;line-height:1.35;color:var(--color-gris);text-decoration:none;transition:border-color .14s ease,color .14s ease,background-color .14s ease,transform .14s ease,opacity .14s ease}
+.dark .cro-ev-chip{border-color:var(--color-noche-borde)}
+.cro-ev-chip:hover,.cro-ev-foco{border-color:var(--color-azul);color:var(--color-azul);background:color-mix(in srgb,var(--color-azul) 8%,transparent);transform:translateY(-1px)}
+.dark .cro-ev-chip:hover,.dark .cro-ev-foco{color:#8FB0E8;border-color:#8FB0E8}
+/* Filas que reaccionan: fondo suave al señalar y la flecha de "a dónde lleva" que aparece. */
+.cro-fila-viva td{transition:background-color .14s ease,opacity .14s ease}
+.cro-fila-viva:hover td,.cro-fila-foco td{background:color-mix(in srgb,var(--color-azul) 6%,transparent)}
+.cro-enlace-vivo{display:inline-flex;align-items:center;gap:.45rem;color:inherit;text-decoration:none;transition:color .14s ease}
+.cro-enlace-vivo:hover,.cro-fila-foco .cro-enlace-vivo{color:var(--color-azul)}
+.dark .cro-enlace-vivo:hover,.dark .cro-fila-foco .cro-enlace-vivo{color:#8FB0E8}
+.cro-enlace-flecha{font-size:10px;font-weight:700;letter-spacing:.02em;color:var(--color-azul);white-space:nowrap;opacity:0;transform:translateX(-4px);transition:opacity .14s ease,transform .14s ease}
+.dark .cro-enlace-flecha{color:#8FB0E8}
+.cro-fila-viva:hover .cro-enlace-flecha,.cro-fila-foco .cro-enlace-flecha{opacity:1;transform:none}
+/* Con algo señalado, lo demás baja de tono para que destaque lo que corresponde. */
+.cro-hay-foco .cro-disp-ocupado:not(.cro-disp-foco){opacity:.38}
+.cro-hay-foco .cro-ev-chip:not(.cro-ev-foco){opacity:.45}
+.cro-hay-foco .cro-fila-viva:not(.cro-fila-foco) td{opacity:.5}
+/* Chips de gente disponible: se levantan al señalar, como todo lo pulsable. */
+.cro-chip-persona{transition:transform .14s ease,box-shadow .14s ease}
+.cro-chip-persona:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgb(0 0 0 / .12)}
+@media (prefers-reduced-motion:reduce){
+  .cro-entra{animation:none}
+  .cro-tip::after,.cro-disp-dia,.cro-ev-chip,.cro-fila-viva td,.cro-enlace-vivo,.cro-enlace-flecha,.cro-chip-persona{transition:none}
+  .cro-disp-dia:hover,.cro-disp-foco,.cro-ev-chip:hover,.cro-ev-foco,.cro-chip-persona:hover{transform:none}
+}
+
+/* ---- Línea de tiempo (pestaña del calendario) --------------------------------
+   Por área: una fila con sus eventos como barras (con nombre) y una fila por persona con
+   barras MUDAS, solo el color, de lo que lidera. Rejilla CSS: la columna 1 es el rótulo
+   (pegado a la izquierda al desplazar) y cada día una columna con su línea vertical; la
+   fila se ilumina al señalarla y las barras del evento señalado se iluminan en todas las
+   filas mientras el resto baja de tono, así se ve de quién es cada marca. */
+.cro-lt{--lt-rot:170px}
+.cro-lt-leyenda{display:flex;flex-wrap:wrap;gap:.35rem 1rem;margin-bottom:.75rem;font-size:11px;color:var(--color-gris)}
+.cro-lt-leyenda span{display:inline-flex;align-items:center;gap:.35rem}
+.cro-lt-mues{display:inline-flex;align-items:center;justify-content:center;width:22px;height:12px;border-radius:3px;font-size:9px;font-weight:800;font-style:normal;line-height:1}
+.cro-lt-mues-ev{background:var(--color-azul)}
+.cro-lt-mues-r{background:var(--color-azul);color:#fff}
+.cro-lt-mues-cubre{border:1.5px solid var(--color-azul);color:var(--color-azul)}
+.cro-lt-scroll{overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:.35rem}
+.cro-lt-fila{display:grid;row-gap:0}
+.cro-lt-cab{margin-bottom:.35rem;border-bottom:2px solid color-mix(in srgb,var(--color-borde) 100%,#000 14%)}
+.dark .cro-lt-cab{border-bottom-color:color-mix(in srgb,var(--color-noche-borde) 100%,#fff 16%)}
+.cro-lt-dia{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;padding:.15rem 0 .3rem;font-size:9px;line-height:1;color:var(--color-gris)}
+.cro-lt-dia b{font-size:11px;font-weight:700;color:var(--color-tinta)}
+.dark .cro-lt-dia b{color:#e9eaee}
+.cro-lt-dia.cro-lt-finde b{color:var(--color-gris)}
+.cro-lt-dia.cro-lt-hoy b{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:9999px;background:var(--color-azul);color:#fff}
+.cro-lt-rot{grid-column:1;grid-row:1 / -1;position:sticky;left:0;z-index:2;display:flex;align-items:center;gap:.4rem;min-width:0;padding:0 .6rem 0 .25rem;background:#fff;font-size:12px;font-weight:600;color:var(--color-tinta);transition:color .12s ease,background-color .12s ease}
+.dark .cro-lt-rot{background:var(--color-noche-2);color:#e9eaee}
+.cro-lt-rot-ev{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--color-gris)}
+.cro-lt-nombre{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cro-lt-cuenta{flex:none;min-width:1.2rem;padding:.1rem .3rem;border-radius:9999px;background:color-mix(in srgb,var(--color-azul) 12%,transparent);font-size:10px;font-weight:700;line-height:1;text-align:center;color:var(--color-azul)}
+.dark .cro-lt-cuenta{color:#8FB0E8}
+.cro-lt-area{margin-top:.7rem;padding-top:.55rem;border-top:2px solid color-mix(in srgb,var(--color-borde) 100%,#000 14%)}
+.dark .cro-lt-area{border-top-color:color-mix(in srgb,var(--color-noche-borde) 100%,#fff 16%)}
+.cro-lt-area-cab{position:sticky;left:0;z-index:2;display:flex;align-items:center;gap:.45rem;width:max-content;max-width:100%;margin-bottom:.35rem;padding-right:.5rem;background:#fff;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--color-tinta)}
+.dark .cro-lt-area-cab{background:var(--color-noche-2);color:#e9eaee}
+.cro-lt-punto{flex:none;width:9px;height:9px;border-radius:9999px}
+.cro-lt-area-n{font-weight:600;letter-spacing:0;text-transform:none;color:var(--color-gris)}
+.cro-lt-celda{border-right:1px solid color-mix(in srgb,var(--color-borde) 100%,#000 8%);pointer-events:none}
+.dark .cro-lt-celda{border-right-color:color-mix(in srgb,var(--color-noche-borde) 100%,#fff 10%)}
+.cro-lt-celda.cro-lt-finde{background:color-mix(in srgb,var(--color-borde) 26%,transparent)}
+.cro-lt-celda.cro-lt-hoy{background:color-mix(in srgb,var(--color-azul) 9%,transparent);border-left:2px solid var(--color-azul)}
+.cro-lt-pista{pointer-events:none;background:repeating-linear-gradient(to bottom,transparent 0 12px,color-mix(in srgb,var(--color-tinta) 22%,transparent) 12px 13px,transparent 13px 26px)}
+.dark .cro-lt-pista{background:repeating-linear-gradient(to bottom,transparent 0 12px,color-mix(in srgb,#e9eaee 22%,transparent) 12px 13px,transparent 13px 26px)}
+.cro-lt-persona{border-top:1px solid color-mix(in srgb,var(--color-borde) 100%,#000 10%)}
+.dark .cro-lt-persona{border-top-color:color-mix(in srgb,var(--color-noche-borde) 100%,#fff 12%)}
+.cro-lt-persona:hover .cro-lt-rot,.cro-lt-fila-foco .cro-lt-rot{color:var(--color-azul);background:color-mix(in srgb,var(--color-azul) 7%,#fff)}
+.dark .cro-lt-persona:hover .cro-lt-rot,.dark .cro-lt-fila-foco .cro-lt-rot{color:#8FB0E8;background:color-mix(in srgb,var(--color-azul) 18%,var(--color-noche-2))}
+.cro-lt-persona:hover .cro-lt-celda,.cro-lt-fila-foco .cro-lt-celda{background:color-mix(in srgb,var(--color-azul) 5%,transparent)}
+.cro-lt-persona:hover .cro-lt-celda.cro-lt-finde,.cro-lt-fila-foco .cro-lt-celda.cro-lt-finde{background:color-mix(in srgb,var(--color-azul) 9%,transparent)}
+.cro-lt-barra{position:relative;display:flex;align-items:center;gap:.3rem;min-width:0;height:22px;margin:2px 1px;padding:0 .45rem;border:1.5px solid transparent;border-radius:.4rem;background:var(--c);font:inherit;font-size:10.5px;font-weight:600;line-height:1;color:#fff;text-align:left;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,opacity .12s ease}
+.cro-lt-barra:hover{z-index:1;transform:translateY(-1px);box-shadow:0 3px 10px rgb(0 0 0 / .2)}
+.cro-lt-txt{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cro-lt-ico{flex:none;font-size:9.5px;font-weight:800}
+.cro-lt-ico:empty{display:none}
+.cro-lt-r{background:var(--c)}
+.cro-lt-cancelado{opacity:.45;text-decoration:line-through}
+.cro-lt-vacio{padding:.3rem 0 0 .25rem;font-size:11px;color:var(--color-gris)}
+/* Barras de un día: solo el icono; el nombre lo da la pista al señalar. */
+.cro-lt-corta{justify-content:center;padding:0 .15rem}
+.cro-lt-corta .cro-lt-txt{display:none}
+/* Barras de las personas: mudas (solo el color), más bajas; el nombre va en la fila de eventos. */
+.cro-lt-muda{justify-content:center;padding:0;height:16px;margin:5px 1px}
+.cro-lt-muda .cro-lt-txt,.cro-lt-muda .cro-lt-ico{display:none}
+.cro-lt-foco{z-index:1;box-shadow:0 0 0 2px var(--color-tinta),0 3px 10px rgb(0 0 0 / .2)}
+.dark .cro-lt-foco{box-shadow:0 0 0 2px #e9eaee,0 3px 10px rgb(0 0 0 / .5)}
+.cro-lt-tenue{opacity:.32}
+@media (max-width:760px){.cro-lt{--lt-rot:130px}}
+@media (prefers-reduced-motion:reduce){.cro-lt-persona .cro-lt-rot,.cro-lt-barra{transition:none}.cro-lt-barra:hover{transform:none}}

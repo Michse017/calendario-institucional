@@ -57,7 +57,7 @@ final class Request
     public function filtros(): array
     {
         $f = [];
-        foreach (['anio', 'area_id', 'tipo_accion_id', 'segmento_id', 'estado', 'mios', 'q', 'desde', 'hasta', 'orden'] as $k) {
+        foreach (['anio', 'area_id', 'tipo_accion_id', 'segmento_id', 'estado', 'mios', 'q', 'desde', 'hasta', 'orden', 'persona'] as $k) {
             $v = $this->get($k);
             if ($v === null || $v === '') {
                 continue;

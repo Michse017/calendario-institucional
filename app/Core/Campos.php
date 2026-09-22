@@ -65,6 +65,8 @@ final class Campos
         'objetivo' => 'Objetivo', 'resultados' => 'Resultados', 'contactos_url' => 'Contactos', 'reuniones' => 'Aforo estimado',
         'alianzas' => 'Alianzas', 'observaciones' => 'Observaciones', 'evidencia_url' => 'Evidencia (enlace)',
         'tipo_accion_otro' => 'Tipo de evento · cuál', 'segmento_otro' => 'Público · cuál',
+        // No son columnas del formulario: salen así en el historial de cambios.
+        'dueno_nombre' => 'Responsable', 'cubrimiento' => 'Cubrimiento',
     ];
 
     /** Ayuda breve que se muestra bajo la etiqueta de cada campo del formulario. */
