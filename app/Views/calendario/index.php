@@ -54,6 +54,8 @@ $cfg = [
         'pideCubrimiento'  => t('Pide cubrimiento'),
         'noPideCubrimiento' => t('No pide cubrimiento'),
         'clicFicha'        => t('Haz clic para ver la ficha'),
+        'clicCrear'        => t('Haz clic para crear un evento este día'),
+        'clicVerDia'       => t('Haz clic para verlo en el calendario'),
         'van'              => t('Van:'),
         'en'               => t('en'),
         'modoTodo'         => t('Todo el evento'),
@@ -351,6 +353,10 @@ $conteoPorArea = array_column($conteos['areas'], 'n', 'id');
                   </button>
                 </template>
                 <p class="cro-dia-vacio" x-show="!dia.eventos.length"><?= h(t('Sin eventos este día.')) ?></p>
+                <?php if ($puedeCrear): ?>
+                <!-- Crear directamente en esa fecha, sin pasar por la vista de mes. -->
+                <button type="button" class="cro-dia-ir" @click="crearEnDia(dia.fecha)">＋ <?= h(t('Crear evento este día')) ?></button>
+                <?php endif; ?>
                 <button type="button" class="cro-dia-ir cro-dia-ir-suave" @click="irADia(dia.fecha)"><?= h(t('Ver este día en el calendario')) ?> →</button>
               </div>
             </template>

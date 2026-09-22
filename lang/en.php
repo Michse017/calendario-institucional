@@ -800,4 +800,9 @@ return [
     'Octubre' => 'October',
     'Noviembre' => 'November',
     'Diciembre' => 'December',
+    // ------------------------------------------ Panel del día: crear ahí mismo
+    'Crear evento este día' => 'Create an event on this day',
+    'Haz clic para crear un evento este día' => 'Click to create an event on this day',
+    'Haz clic para verlo en el calendario' => 'Click to see it in the calendar',
+
 ];

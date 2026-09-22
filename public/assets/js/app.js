@@ -766,10 +766,15 @@ document.addEventListener('alpine:init', () => {
      * tiene nada que enseñar, así que lleva directo al calendario.
      */
     pulsarDia(c, el) {
-      if (!c.n) { this.irADia(c.f); return; }
+      // Un día vacío también abre el panel: desde ahí se crea el evento en esa fecha.
       if (this.dia && this.dia.fecha === c.f) { this.dia = null; this.diaEvento = null; return; }
       this.vistazo = null;
       this.abrirDia(c, el);
+    },
+    /** Crear un evento en ese día, igual que pulsar la casilla en la vista de mes. */
+    crearEnDia(f) {
+      if (!cfg.puedeCrear) { return; }
+      window.location = `${cfg.nuevoUrl}&fecha=${f}`;
     },
     /** Llevar al evento: se cambia al mes de su fecha y se abre su ficha a la derecha. */
     irAlEvento(e) {
@@ -801,6 +806,8 @@ document.addEventListener('alpine:init', () => {
         cuenta: n === 0 ? this.txt.sinNada : n + ' ' + (n === 1 ? this.unidadMapa[0] : this.unidadMapa[1]),
         lineas: this.lineasVistazo(c, personas),
         gente: !personas && (c.gente || []).length ? this.txt.van + ' ' + c.gente.slice(0, 5).join(', ') : '',
+        // En un día vacío la pista dice lo que de verdad pasa al pulsar.
+        pie: n === 0 ? (cfg.puedeCrear ? this.txt.clicCrear : this.txt.clicVerDia) : '',
       };
     },
     /** Nombres del vistazo; en los modos de eventos, con ⚑ al lado si el evento pide cubrimiento. */
